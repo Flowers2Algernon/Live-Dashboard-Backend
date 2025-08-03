@@ -20,7 +20,6 @@ This project contains the core business logic interfaces and service implementat
 
 ### LERD.Domain
 Defines the core domain models (entities) that represent the business concepts in the system.
-
 <br><br>Responsibilities:
 - Declaring POCO classes like `SurveyData`, `User`, `Service`
 - Establishing strong typing for data
@@ -28,7 +27,6 @@ Defines the core domain models (entities) that represent the business concepts i
 
 ### LERD.Infrastructure
 Contains implementations for external operations such as reading survey data from files, calling Python scripts, or accessing external APIs or storage.
-
 <br><br>Responsibilities:
 - Implementing data access (e.g., reading JSON files from storage)
 - Executing Python scripts for Qualtrics data extraction
@@ -37,7 +35,6 @@ Contains implementations for external operations such as reading survey data fro
 
 ### LERD.Shared
 Provides shared types, DTOs, constants and helper methods used across all other projects.
-
 <br><br>Responsibilities:
 - Data Transfer Objects
 - Utility functions (e.g., data conversion, config parsing)
@@ -46,6 +43,9 @@ Provides shared types, DTOs, constants and helper methods used across all other 
 
 ## Project References
 Backend: depends on all projects
+
 Application: depends on Domain, Infrastructure, Shared
+
 Infrastructure: depends on Domain, Shared
+
 Domain: depends on Shared
