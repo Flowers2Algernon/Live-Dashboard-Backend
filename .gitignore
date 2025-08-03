@@ -7,23 +7,30 @@
 node_modules/
 dist/
 
-# Compiled Java class files
+# Compiled class files
 *.class
+bin/
+obj/
 
 # Compiled Python bytecode
 *.py[cod]
+PythonScripts/__pychache__/
+PythonScripts/*.pyc
 
 # Log files
 *.log
 
 # Package files
 *.jar
+/packages/
 
 # Maven
 target/
 dist/
 
 # JetBrains IDE
+riderModule.iml
+/_ReSharper.Caches/
 .idea/
 
 # Unit test reports
@@ -47,4 +54,3 @@ Thumbs.db
 *.flv
 *.mov
 *.wmv
-

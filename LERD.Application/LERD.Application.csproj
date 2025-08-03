@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\LERD.Domain\LERD.Domain.csproj" />
+      <ProjectReference Include="..\LERD.Infrastructure\LERD.Infrastructure.csproj" />
+      <ProjectReference Include="..\LERD.Shared\LERD.Shared.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Interfaces\" />
+      <Folder Include="Services\" />
+    </ItemGroup>
+
+</Project>
