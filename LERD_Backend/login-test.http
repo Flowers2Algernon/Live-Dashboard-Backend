@@ -1,0 +1,34 @@
+# login api test
+
+## log in 
+POST http://localhost:5153/api/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+###
+
+## log in error
+POST http://localhost:5153/api/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "wrongpassword"
+}
+
+###
+
+## test api condition
+GET http://localhost:5153/api/login/test
+
+###
+
+## valid account：
+# admin / admin123
+# user / user123  
+# teacher / teacher123
+# student / student123
