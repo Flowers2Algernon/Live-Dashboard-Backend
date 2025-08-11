@@ -54,3 +54,9 @@ Thumbs.db
 *.flv
 *.mov
 *.wmv
+
+# .env file
+*/.env
+
+# Data folder
+*/data_files
