@@ -9,6 +9,8 @@ API_TOKEN = os.getenv("API_TOKEN")
 SURVEY_IDS = os.getenv("SURVEY_IDS") # split by spaces
 DATA_CENTER = os.getenv("DATA_CENTER")
 
+survey_id_list = SURVEY_IDS.split(" ")
+
 # Set request headers
 headers = {
     "x-api-token": API_TOKEN,
@@ -39,4 +41,5 @@ def get_questions_single_survey(survey_id):
     print(loaded_fields_json)
 
 if __name__ == "__main__":
-    get_questions_single_survey(SURVEY_IDS)
+    for survey_id in survey_id_list:
+        get_questions_single_survey(survey_id)
