@@ -1,5 +1,4 @@
 import os
-# from pathlib import Path
 from dotenv import load_dotenv
 import requests
 import json
@@ -16,7 +15,7 @@ headers = {
     "content-type": "application/json"
 }
 
-allowed_keys_dict = ["Facility", "Satisfaction", "Ab_", "Gender", "ParticipantType"] # “NPS_NPS_GROUP” not found and "NPS" returns list instead of dict
+allowed_keys_dict = ["Facility", "Satisfaction", "Gender", "ParticipantType"] # “NPS_NPS_GROUP” not found and "NPS" returns list instead of dict
 allowed_prefixes = ["Ab_"]
 loaded_fields = {}
 
