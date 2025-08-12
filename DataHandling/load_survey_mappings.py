@@ -25,7 +25,9 @@ def get_questions_single_survey(survey_id):
     get_survey_url = f"https://{DATA_CENTER}.qualtrics.com/API/v3/survey-definitions/{survey_id}"
     response = requests.get(get_survey_url, headers=headers)
     questions = response.json()["result"]["Questions"]
+    return questions
 
+def get_code_label_mappings(questions):
     for question in questions.values():
         outer_key = question["DataExportTag"]
         if outer_key not in allowed_keys_dict and not any(outer_key.startswith(p) for p in allowed_prefixes):
@@ -36,10 +38,11 @@ def get_questions_single_survey(survey_id):
                 inner_mapping[key] = value["Display"]
 
             loaded_fields[outer_key] = inner_mapping
-
+    # Convert dict to json
     loaded_fields_json = json.dumps(loaded_fields)
     print(loaded_fields_json)
 
 if __name__ == "__main__":
     for survey_id in survey_id_list:
-        get_questions_single_survey(survey_id)
+        questions = get_questions_single_survey(survey_id)
+        get_code_label_mappings(questions)
