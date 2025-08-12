@@ -37,10 +37,7 @@ def get_questions_single_survey(survey_id):
             for key, value in question["Choices"].items():
                 inner_mapping[key] = value["Display"]
 
-            if not any(outer_key.startswith(p) for p in allowed_prefixes):
-                loaded_fields[outer_key] = inner_mapping
-            else:
-                loaded_fields[outer_key[3:]] = inner_mapping
+            loaded_fields[outer_key] = inner_mapping
 
     loaded_fields_json = json.dumps(loaded_fields)
     print(loaded_fields_json)
