@@ -1,5 +1,4 @@
 import os
-# from pathlib import Path
 from dotenv import load_dotenv
 import requests
 import json
@@ -16,8 +15,7 @@ headers = {
     "content-type": "application/json"
 }
 
-allowed_keys_dict = ["Facility", "Satisfaction", "Ab_", "Gender", "ParticipantType"] # “NPS_NPS_GROUP” not found and "NPS" returns list instead of dict
-allowed_keys_list = []
+allowed_keys_dict = ["Facility", "Satisfaction", "Gender", "ParticipantType"] # “NPS_NPS_GROUP” not found and "NPS" returns list instead of dict
 allowed_prefixes = ["Ab_"]
 loaded_fields = {}
 
@@ -28,9 +26,7 @@ def get_questions_single_survey(survey_id):
 
     for question in questions.values():
         outer_key = question["DataExportTag"]
-        if outer_key in allowed_keys_list:
-            pass
-        elif outer_key not in allowed_keys_dict and not any(outer_key.startswith(p) for p in allowed_prefixes):
+        if outer_key not in allowed_keys_dict and not any(outer_key.startswith(p) for p in allowed_prefixes):
             continue
         else:
             inner_mapping = {}
