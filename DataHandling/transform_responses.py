@@ -36,7 +36,7 @@ def load_csv(survey_id, base_dir):
     return pd.read_csv(find_latest_csv(base_dir, survey_id))
 
 
-def load_key_values_to_json(df, columns):
+def transform_key_values(df, columns):
     if key_fields_prefixes:
         prefix_cols = [col for col in df.columns if any(col.startswith(p) for p in key_fields_prefixes)]
     else:
@@ -46,11 +46,16 @@ def load_key_values_to_json(df, columns):
 
     df_selected = df[complete_cols]
     data = df_selected.to_dict(orient='records')[2:] # Remove the headers
-    return json.dumps(data)
+    return data
 
 
 if __name__ == "__main__":
     survey_id_list = SURVEY_IDS.split(" ")
+    key_values_by_survey = {}
     for survey_id in survey_id_list:
         df_responses = load_csv(survey_id, base)
-        print(load_key_values_to_json(df_responses, key_fields))
+        key_values_by_survey[survey_id] = transform_key_values(df_responses, key_fields)
+
+    # Convert dict to json
+    key_values_by_survey_json = json.dumps(key_values_by_survey)
+    print(key_values_by_survey_json)

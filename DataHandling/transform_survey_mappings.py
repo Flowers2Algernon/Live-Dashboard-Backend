@@ -17,9 +17,12 @@ headers = {
     "content-type": "application/json"
 }
 
-allowed_keys_dict = ["Facility", "Satisfaction", "Gender", "ParticipantType"] # “NPS_NPS_GROUP” not found and "NPS" returns list instead of dict
+allowed_keys_dict = ["ServiceType", "Facility", "Satisfaction", "Gender", "ParticipantType"] # “NPS_NPS_GROUP” not found and "NPS" returns list instead of dict
 allowed_prefixes = ["Ab_"]
-loaded_fields = {}
+transformed_fields = {
+    "key_fields": {},
+    "mappings": {}
+}
 
 def get_questions_single_survey(survey_id):
     get_survey_url = f"https://{DATA_CENTER}.qualtrics.com/API/v3/survey-definitions/{survey_id}"
@@ -27,7 +30,7 @@ def get_questions_single_survey(survey_id):
     questions = response.json()["result"]["Questions"]
     return questions
 
-def get_code_label_mappings(questions):
+def get_code_label_mappings_n_key_fields(questions):
     for question in questions.values():
         outer_key = question["DataExportTag"]
         if outer_key not in allowed_keys_dict and not any(outer_key.startswith(p) for p in allowed_prefixes):
@@ -36,13 +39,20 @@ def get_code_label_mappings(questions):
             inner_mapping = {}
             for key, value in question["Choices"].items():
                 inner_mapping[key] = value["Display"]
+            if outer_key == "ServiceType":
+                transformed_fields["key_fields"][outer_key] = inner_mapping["1"]
+            else:
+                transformed_fields["mappings"][outer_key] = inner_mapping
 
-            loaded_fields[outer_key] = inner_mapping
-    # Convert dict to json
-    loaded_fields_json = json.dumps(loaded_fields)
-    print(loaded_fields_json)
+    return transformed_fields
 
 if __name__ == "__main__":
+    mappings_n_key_values_by_survey = {}
     for survey_id in survey_id_list:
         questions = get_questions_single_survey(survey_id)
-        get_code_label_mappings(questions)
+        transformed_fields_survey = get_code_label_mappings_n_key_fields(questions)
+        mappings_n_key_values_by_survey[survey_id] = transformed_fields_survey
+
+    # Convert dict to json
+    mappings_n_key_values_by_survey_json = json.dumps(mappings_n_key_values_by_survey)
+    print(mappings_n_key_values_by_survey_json)
