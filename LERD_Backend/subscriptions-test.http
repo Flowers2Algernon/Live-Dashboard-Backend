@@ -1,0 +1,138 @@
+@base_url = http://localhost:5153
+
+### ===== 订阅管理 API 测试 =====
+
+### 1. 获取所有订阅 - Get All Subscriptions
+GET {{base_url}}/api/subscriptions?page=1&pageSize=10
+Accept: application/json
+
+### 2. 获取单个订阅详情 - Get Subscription by ID
+# 使用创建订阅后返回的ID
+GET {{base_url}}/api/subscriptions/your-subscription-id-here
+Accept: application/json
+
+### 3. 创建新订阅 - Create Subscription
+# 为 Curtin Management and Marketing (87820689-13ac-48d9-b244-9badc5c35155) 创建订阅
+POST {{base_url}}/api/subscriptions
+Content-Type: application/json
+
+{
+  "organisationId": "87820689-13ac-48d9-b244-9badc5c35155",
+  "planType": "premium",
+  "status": "active",
+  "startDate": "2025-01-01",
+  "endDate": "2025-12-31",
+  "maxSurveys": 50,
+  "maxUsers": 25,
+  "features": "{\"dashboard_access\": true, \"llm_analysis\": true, \"advanced_reports\": true}",
+  "billingCycle": "annually"
+}
+
+### 4. 更新订阅 - Update Subscription
+# 更新订阅信息（需要替换为实际的subscription ID）
+PATCH {{base_url}}/api/subscriptions/your-subscription-id-here
+Content-Type: application/json
+
+{
+  "status": "active",
+  "endDate": "2026-01-01",
+  "maxUsers": 50
+}
+
+### 5. 取消订阅 - Cancel Subscription (软删除)
+# 取消订阅（设置状态为cancelled）
+DELETE {{base_url}}/api/subscriptions/your-subscription-id-here
+
+### ===== 组织订阅管理 API =====
+
+### 6. 获取组织的所有订阅 - Get Organisation Subscriptions
+GET {{base_url}}/api/subscriptions/organisation/87820689-13ac-48d9-b244-9badc5c35155
+Accept: application/json
+
+### 7. 获取组织的活跃订阅 - Get Active Organisation Subscription
+GET {{base_url}}/api/subscriptions/organisation/87820689-13ac-48d9-b244-9badc5c35155/active
+Accept: application/json
+
+### 8. 检查组织订阅状态 - Check Organisation Subscription Status
+GET {{base_url}}/api/subscriptions/organisation/87820689-13ac-48d9-b244-9badc5c35155/status
+Accept: application/json
+
+### 9. 为组织创建/更新订阅 - Admin Create/Update Organisation Subscription
+POST {{base_url}}/api/subscriptions/organisation/87820689-13ac-48d9-b244-9badc5c35155
+Content-Type: application/json
+
+{
+  "planType": "enterprise",
+  "status": "active",
+  "startDate": "2025-09-07",
+  "endDate": "2025-12-31",
+  "maxSurveys": 100,
+  "maxUsers": 100,
+  "features": "{\"dashboard_access\": true, \"llm_analysis\": true, \"advanced_reports\": true, \"api_access\": true}",
+  "billingCycle": "monthly"
+}
+
+### ===== API文档要求的端点 =====
+
+### 10. 获取组织及其订阅信息 - Get Organisation with Subscription
+# 对应API文档的 GET /api/organizations/{id}/subscription
+GET {{base_url}}/api/organizations/87820689-13ac-48d9-b244-9badc5c35155/subscription
+Accept: application/json
+
+### 11. 管理员创建/更新组织订阅 - Admin Create/Update Organisation Subscription
+# 对应API文档的 POST /api/organizations/{id}/subscription
+POST {{base_url}}/api/organizations/87820689-13ac-48d9-b244-9badc5c35155/subscription
+Content-Type: application/json
+
+{
+  "planType": "standard",
+  "status": "active",
+  "startDate": "2025-09-07",
+  "endDate": "2026-09-07",
+  "maxSurveys": 25,
+  "maxUsers": 15,
+  "features": "{\"dashboard_access\": true, \"basic_reports\": true}",
+  "billingCycle": "annually"
+}
+
+### ===== 系统维护端点 =====
+
+### 12. 更新过期订阅 - Update Expired Subscriptions
+# 系统维护端点，用于批量更新过期的订阅
+POST {{base_url}}/api/subscriptions/update-expired
+Accept: application/json
+
+### ===== 测试数据说明 =====
+# 测试中使用的组织ID:
+# - Curtin Management and Marketing: 87820689-13ac-48d9-b244-9badc5c35155
+# - Test Organization: bd6f6592-a52c-4e17-a5c7-f241153a10c8
+#
+# 订阅状态选项: active, inactive, cancelled, expired, suspended
+# 计费周期选项: monthly, annually
+# 计划类型示例: basic, standard, premium, enterprise
+
+### ===== 错误测试用例 =====
+
+### 13. 创建订阅 - 无效的组织ID
+POST {{base_url}}/api/subscriptions
+Content-Type: application/json
+
+{
+  "organisationId": "00000000-0000-0000-0000-000000000000",
+  "status": "active",
+  "startDate": "2025-01-01"
+}
+
+### 14. 创建订阅 - 无效的状态
+POST {{base_url}}/api/subscriptions
+Content-Type: application/json
+
+{
+  "organisationId": "87820689-13ac-48d9-b244-9badc5c35155",
+  "status": "invalid_status",
+  "startDate": "2025-01-01"
+}
+
+### 15. 获取不存在的订阅
+GET {{base_url}}/api/subscriptions/00000000-0000-0000-0000-000000000000
+Accept: application/json
