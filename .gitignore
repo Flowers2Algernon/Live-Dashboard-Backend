@@ -54,3 +54,9 @@ Thumbs.db
 *.flv
 *.mov
 *.wmv
+
+# Environment variables and sensitive configuration
+.env
+*.env
+appsettings.Local.json
+appsettings.*.Local.json
