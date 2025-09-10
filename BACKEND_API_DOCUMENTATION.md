@@ -870,90 +870,16 @@ function NPSChart({ surveyId, filters }) {
 }
 ```
 
-### Chart.js Integration Example
-```javascript
-// Create NPS distribution chart using Chart.js
-function createNPSChart(npsData) {
-    const ctx = document.getElementById('npsChart').getContext('2d');
-    
-    return new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Promoters', 'Passive', 'Detractors'],
-            datasets: [{
-                data: [
-                    npsData.distribution.promoterCount,
-                    npsData.distribution.passiveCount,
-                    npsData.distribution.detractorCount
-                ],
-                backgroundColor: [
-                    '#4CAF50', // Green for promoters
-                    '#FFC107', // Yellow for passive
-                    '#F44336'  // Red for detractors
-                ],
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                title: {
-                    display: true,
-                    text: `NPS Score: ${npsData.npsScore}`
-                },
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
-}
+### Testing Commands
+
+```bash
+# cURL test examples
+curl -X GET "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" \
+  -H "accept: application/json"
+
+curl -X GET "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1" \
+  -H "accept: application/json"
 ```
-
-## Testing Instructions
-
-### Manual Testing
-
-1. **Test all participants:**
-   ```bash
-   curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
-   ```
-
-2. **Test gender filter (male):**
-   ```bash
-   curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1"
-   ```
-
-3. **Test gender filter (female):**
-   ```bash
-   curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2"
-   ```
-
-4. **Test combined filters:**
-   ```bash
-   curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1"
-   ```
-
-5. **Test invalid survey ID:**
-   ```bash
-   curl "http://localhost:5153/api/charts/nps?surveyId=invalid-id"
-   ```
-
-### Expected Results
-
-- **All participants**: Should return overall NPS score and distribution
-- **Gender filters**: Should return filtered data with appropriate counts and percentages
-- **Combined filters**: Should apply all filters simultaneously
-- **Invalid survey ID**: Should return a 400 error with appropriate message
-- **No data**: Should return zero values with success status
-
-### Verification Points
-
-1. **NPS Score Calculation**: Verify that `(promoterCount - detractorCount) / totalCount * 100` equals the returned NPS score
-2. **Percentage Calculation**: Verify that percentages sum to 100% (allowing for rounding)
-3. **Count Consistency**: Verify that `promoterCount + passiveCount + detractorCount = totalCount`
-4. **Filter Effectiveness**: Verify that applying filters reduces the total count appropriately
-5. **Response Format**: Verify all required fields are present and have correct data types
 
 ---
 
@@ -1470,67 +1396,111 @@ function createServiceAttributeChart(attributeData) {
 
 ### Manual Testing
 
-1. **Test all attributes data:**
+1. **Test all participant data:**
    ```bash
-   curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+   curl "http://localhost:5153/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
    ```
 
 2. **Test gender filter (male):**
    ```bash
-   curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1"
+   curl "http://localhost:5153/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1"
    ```
 
 3. **Test gender filter (female):**
    ```bash
-   curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2"
+   curl "http://localhost:5153/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2"
    ```
 
-4. **Test selected attributes:**
+4. **Test combined filters:**
    ```bash
-   curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&selectedAttributes=Safety&selectedAttributes=Activities"
+   curl "http://localhost:5153/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1"
    ```
 
-5. **Test combined filters:**
+5. **Test invalid survey ID:**
    ```bash
-   curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&selectedAttributes=Safety&selectedAttributes=Facilities"
+   curl "http://localhost:5153/api/charts/response?surveyId=invalid-id"
    ```
 
-6. **Test invalid survey ID:**
+6. **Test all participant trend data:**
    ```bash
-   curl "http://localhost:5153/api/charts/service-attributes?surveyId=invalid-id"
+   curl "http://localhost:5153/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
    ```
+
+7. **Test with gender filter (male):**
+   ```bash
+   curl "http://localhost:5153/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1"
+   ```
+
+8. **Test with combined filters:**
+   ```bash
+   curl "http://localhost:5153/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2&participantType=1"
+   ```
+
+9. **Test all NPS data:**
+   ```bash
+   curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+   ```
+
+10. **Test male participants only:**
+    ```bash
+    curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1"
+    ```
+
+11. **Test female participants only:**
+    ```bash
+    curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2"
+    ```
+
+12. **Test combined filters:**
+    ```bash
+    curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1"
+    ```
+
+13. **Test all service attributes:**
+    ```bash
+    curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+    ```
+
+14. **Test with gender filter (male):**
+    ```bash
+    curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1"
+    ```
+
+15. **Test with selected attributes only:**
+    ```bash
+    curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&selectedAttributes=Safety&selectedAttributes=Activities"
+    ```
+
+16. **Test combined demographic and attribute filtering:**
+    ```bash
+    curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&selectedAttributes=Safety&selectedAttributes=Facilities"
+    ```
+
+17. **Test with non-existent attributes (should be ignored):**
+    ```bash
+    curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&selectedAttributes=NonExistent&selectedAttributes=Safety"
+    ```
+
+18. **Test invalid survey ID:**
+    ```bash
+    curl "http://localhost:5153/api/charts/response?surveyId=invalid-id"
+    ```
 
 ### Expected Results
 
-- **All attributes**: Should return all 6 service attributes with full participant data
-- **Gender filters**: Should return filtered data with reduced participant counts
-- **Selected attributes**: Should return only the specified attributes
-- **Combined filters**: Should apply both demographic and attribute filters
+- **All participants**: Should return overall NPS score and distribution
+- **Gender filters**: Should return filtered data with appropriate counts and percentages
+- **Combined filters**: Should apply all filters simultaneously
 - **Invalid survey ID**: Should return a 400 error with appropriate message
-- **No data**: Should return empty arrays with success status
+- **No data**: Should return zero values with success status
 
 ### Verification Points
 
-1. **Dynamic Attribute Detection**: Verify that `availableAttributes` array contains all attributes found in the survey data
-2. **Attribute Name Mapping**: Verify that display names match the mapping (e.g., "Safety" → "Safety & Security")
-3. **Percentage Calculation**: Verify that `alwaysPercentage = (alwaysCount / validResponses) × 100`
-4. **Filter Effectiveness**: Verify that demographic filters reduce participant counts appropriately
-5. **Attribute Selection**: Verify that `selectedAttributes` parameter filters the returned attributes
-6. **Response Consistency**: Verify that `totalResponses` matches between all attributes for the same filter set
-7. **Benchmark Values**: Verify that criteria percentages are always 80.0 and 60.0
-
-### Advanced Testing Scenarios
-
-```bash
-# Test with non-existent attributes (should be ignored)
-curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&selectedAttributes=NonExistent&selectedAttributes=Safety"
-
-# Test with all possible demographic combinations
-curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1"
-
-# Test response format with jq for JSON validation
-curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" | jq '.data.attributes[0] | keys'
-```
+1. **NPS Score Calculation**: Verify that `(promoterCount - detractorCount) / totalCount * 100` equals the returned NPS score
+2. **Percentage Calculation**: Verify that percentages sum to 100% (allowing for rounding)
+3. **Count Consistency**: Verify that `promoterCount + passiveCount + detractorCount = totalCount`
+4. **Filter Effectiveness**: Verify that applying filters reduces the total count appropriately
+5. **Response Format**: Verify all required fields are present and have correct data types
 
 ---
 
@@ -1570,3 +1540,278 @@ All APIs follow the standard error response format:
 
 ### Content Type
 All requests and responses use `application/json` content type.
+
+---
+
+## Production Environment Testing (Railway)
+
+### Base URL
+- **Production**: `https://live-dashboard-backend-production.up.railway.app`
+- **Development**: `http://localhost:5153`
+
+### Production API Testing Commands
+
+#### Response Chart API Tests
+
+```bash
+# Test all participant data
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" \
+  -H "accept: application/json"
+
+# Test with gender filter (male)
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1" \
+  -H "accept: application/json"
+
+# Test with combined filters
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1" \
+  -H "accept: application/json"
+```
+
+#### Customer Satisfaction Trend API Tests
+
+```bash
+# Test all participant trend data
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" \
+  -H "accept: application/json"
+
+# Test with gender filter
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1" \
+  -H "accept: application/json"
+
+# Test with combined filters
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2&participantType=1" \
+  -H "accept: application/json"
+```
+
+#### NPS (Net Promoter Score) API Tests
+
+```bash
+# Test all participants NPS data
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" \
+  -H "accept: application/json"
+
+# Test male participants only
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1" \
+  -H "accept: application/json"
+
+# Test female participants only
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2" \
+  -H "accept: application/json"
+
+# Test combined filters
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1" \
+  -H "accept: application/json"
+```
+
+#### Service Attribute API Tests
+
+```bash
+# Test all service attributes
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" \
+  -H "accept: application/json"
+
+# Test with gender filter (male)
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1" \
+  -H "accept: application/json"
+
+# Test with selected attributes only
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&selectedAttributes=Safety&selectedAttributes=Activities" \
+  -H "accept: application/json"
+
+# Test combined demographic and attribute filtering
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&selectedAttributes=Safety&selectedAttributes=Facilities" \
+  -H "accept: application/json"
+
+# Test with non-existent attributes (should be ignored)
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&selectedAttributes=NonExistent&selectedAttributes=Safety" \
+  -H "accept: application/json"
+```
+
+#### Health Check
+
+```bash
+# Test API health
+curl "https://live-dashboard-backend-production.up.railway.app/api/health" \
+  -H "accept: application/json"
+```
+
+#### Error Testing
+
+```bash
+# Test with invalid survey ID
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=invalid-id" \
+  -H "accept: application/json"
+
+# Test with missing survey ID
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response" \
+  -H "accept: application/json"
+```
+
+### CORS Testing
+
+```bash
+# Test CORS preflight request
+curl -H "Origin: https://your-frontend-domain.com" \
+     -H "Access-Control-Request-Method: GET" \
+     -H "Access-Control-Request-Headers: Content-Type" \
+     -X OPTIONS \
+     "https://live-dashboard-backend-production.up.railway.app/api/charts/response"
+
+# Test actual CORS request
+curl -H "Origin: https://your-frontend-domain.com" \
+     -H "Content-Type: application/json" \
+     "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+```
+
+### Frontend Integration with Production URL
+
+#### JavaScript Environment Configuration
+
+```javascript
+// config.js
+const CONFIG = {
+  API_BASE_URL: process.env.NODE_ENV === 'production' 
+    ? 'https://live-dashboard-backend-production.up.railway.app/api'
+    : 'http://localhost:5153/api'
+};
+
+export default CONFIG;
+```
+
+#### Updated Frontend API Calls
+
+```javascript
+import CONFIG from './config.js';
+
+// Response Chart API
+async function getResponseChartData(surveyId, filters = {}) {
+  const params = new URLSearchParams({
+    surveyId: surveyId,
+    ...filters
+  });
+  
+  try {
+    const response = await fetch(`${CONFIG.API_BASE_URL}/charts/response?${params}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('Response Chart Data:', result.data);
+      return result.data;
+    } else {
+      console.error('API Error:', result.message);
+      return null;
+    }
+  } catch (error) {
+    console.error('Network Error:', error);
+    return null;
+  }
+}
+
+// Customer Satisfaction Trend API
+async function getCustomerSatisfactionTrendData(surveyId, filters = {}) {
+  const params = new URLSearchParams({
+    surveyId: surveyId,
+    ...filters
+  });
+  
+  try {
+    const response = await fetch(`${CONFIG.API_BASE_URL}/charts/customer-satisfaction-trend?${params}`);
+    const result = await response.json();
+    return result.success ? result.data : null;
+  } catch (error) {
+    console.error('Error fetching trend data:', error);
+    return null;
+  }
+}
+
+// NPS API
+async function getNPSData(surveyId, filters = {}) {
+  const params = new URLSearchParams({ surveyId });
+  
+  if (filters.gender) params.append('gender', filters.gender);
+  if (filters.participantType) params.append('participantType', filters.participantType);
+  
+  try {
+    const response = await fetch(`${CONFIG.API_BASE_URL}/charts/nps?${params}`);
+    const result = await response.json();
+    return result.success ? result.data : null;
+  } catch (error) {
+    console.error('Error fetching NPS data:', error);
+    return null;
+  }
+}
+
+// Service Attribute API
+async function getServiceAttributeData(surveyId, options = {}) {
+  const params = new URLSearchParams({ surveyId });
+  
+  if (options.gender) params.append('gender', options.gender);
+  if (options.participantType) params.append('participantType', options.participantType);
+  if (options.selectedAttributes) {
+    options.selectedAttributes.forEach(attr => params.append('selectedAttributes', attr));
+  }
+  
+  try {
+    const response = await fetch(`${CONFIG.API_BASE_URL}/charts/service-attributes?${params}`);
+    const result = await response.json();
+    return result.success ? result.data : null;
+  } catch (error) {
+    console.error('Error fetching service attribute data:', error);
+    return null;
+  }
+}
+
+// Usage examples for production
+getResponseChartData('8dff523d-2a46-4ee3-8017-614af3813b32');
+getCustomerSatisfactionTrendData('8dff523d-2a46-4ee3-8017-614af3813b32', { gender: '1' });
+getNPSData('8dff523d-2a46-4ee3-8017-614af3813b32', { gender: '2' });
+getServiceAttributeData('8dff523d-2a46-4ee3-8017-614af3813b32', { 
+  selectedAttributes: ['Safety', 'Activities'] 
+});
+```
+
+### Expected Production Results
+
+Based on your Railway deployment, you should expect:
+
+1. **HTTPS Support**: ✅ All requests use HTTPS
+2. **Port 8080**: ✅ Automatically handled by Railway
+3. **Global Access**: ✅ Available worldwide
+4. **Persistent Storage**: ✅ Connected to Supabase database
+
+### Testing Checklist
+
+- [ ] Health check responds with 200 OK
+- [ ] All chart APIs return valid JSON responses
+- [ ] CORS headers are properly configured
+- [ ] Database connections work correctly
+- [ ] Error responses are properly formatted
+- [ ] Filters work as expected
+- [ ] Response times are acceptable (< 2 seconds)
+
+### Troubleshooting
+
+If you encounter issues:
+
+1. **Check Railway Logs**:
+   ```bash
+   # In Railway dashboard, check deployment logs
+   ```
+
+2. **Verify Environment Variables**:
+   - `ASPNETCORE_ENVIRONMENT=Production`
+   - `ConnectionStrings__DefaultConnection` (Supabase connection)
+   - `ALLOWED_ORIGINS` (if using custom frontend domain)
+
+3. **Test Database Connection**:
+   ```bash
+   # Check if any API returns data
+   curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+   ```

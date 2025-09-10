@@ -147,27 +147,73 @@ PORT=8080
 
 ## 测试部署
 
-部署完成后，测试以下端点：
+### 🎉 您的生产环境 URL
+**Railway 部署地址**: `https://live-dashboard-backend-production.up.railway.app`
+
+### 基础健康检查
 
 ```bash
-# 健康检查（Railway 示例）
-curl https://your-app.railway.app/api/health
+# 测试API是否在线
+curl "https://live-dashboard-backend-production.up.railway.app/api/health" \
+  -H "accept: application/json"
+```
 
-# 客户满意度 API
-curl "https://your-app.railway.app/api/charts/customer-satisfaction" \
-  -H "Content-Type: application/json" \
-  -d '{"filters":{"dateRange":{"startDate":"2024-01-01","endDate":"2024-12-31"}}}'
+### 核心 API 测试
 
-# 服务属性 API
-curl "https://your-app.railway.app/api/charts/service-attributes" \
-  -H "Content-Type: application/json" \
-  -d '{"filters":{"dateRange":{"startDate":"2024-01-01","endDate":"2024-12-31"},"attributes":["Ab_Responsiveness","Ab_Reliability"]}}'
+```bash
+# 1. Response Chart API
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" \
+  -H "accept: application/json"
 
-# 检查 CORS
+# 2. Customer Satisfaction Trend API
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" \
+  -H "accept: application/json"
+
+# 3. NPS API
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" \
+  -H "accept: application/json"
+
+# 4. Service Attribute API
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" \
+  -H "accept: application/json"
+```
+
+### 过滤器测试
+
+```bash
+# 性别过滤测试
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1" \
+  -H "accept: application/json"
+
+# 组合过滤测试
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1" \
+  -H "accept: application/json"
+
+# 属性选择测试
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&selectedAttributes=Safety&selectedAttributes=Activities" \
+  -H "accept: application/json"
+```
+
+### CORS 测试
+
+```bash
+# 检查 CORS 配置
 curl -H "Origin: https://your-frontend.com" \
      -H "Access-Control-Request-Method: GET" \
      -X OPTIONS \
-     https://your-app.railway.app/api/charts/customer-satisfaction
+     "https://live-dashboard-backend-production.up.railway.app/api/charts/response"
+```
+
+### 错误处理测试
+
+```bash
+# 测试无效 survey ID
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=invalid-id" \
+  -H "accept: application/json"
+
+# 测试缺少必需参数
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response" \
+  -H "accept: application/json"
 ```
 
 ## 常见问题
