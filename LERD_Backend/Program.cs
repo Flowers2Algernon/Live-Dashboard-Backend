@@ -40,6 +40,28 @@ builder.Services.AddScoped<IServiceAttributeService, ServiceAttributeService>();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
                       ?? Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING");
 
+// 检查是否是PostgreSQL URI格式 (postgresql://...)
+if (!string.IsNullOrEmpty(connectionString) && connectionString.StartsWith("postgresql://"))
+{
+    // Railway提供的PostgreSQL URI格式，转换为Npgsql格式
+    try
+    {
+        var uri = new Uri(connectionString);
+        var host = uri.Host;
+        var port = uri.Port != -1 ? uri.Port : 5432;
+        var database = uri.AbsolutePath.TrimStart('/');
+        var username = uri.UserInfo.Split(':')[0];
+        var password = uri.UserInfo.Split(':')[1];
+        
+        connectionString = $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require";
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Failed to parse PostgreSQL URI: {ex.Message}");
+        connectionString = null; // 让它fallback到组件方式
+    }
+}
+
 // Fallback to building connection string from individual components if direct connection string not available
 if (string.IsNullOrEmpty(connectionString))
 {
