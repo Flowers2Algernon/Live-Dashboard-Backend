@@ -59,4 +59,4 @@ Thumbs.db
 */.env
 
 # Data folder
-*/data_files
+qualtrics-data-processor/data

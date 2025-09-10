@@ -10,7 +10,7 @@ load_dotenv()
 SURVEY_IDS = os.getenv("SURVEY_IDS") # split by spaces
 
 script_dir = Path(__file__).resolve().parent
-base = script_dir / "data_files"
+base = script_dir / "data"
 
 key_fields = ["Facility", "Satisfaction", "EndDate", "NPS", "NPS_NPS_GROUP", "Gender", "ParticipantType"]
 key_fields_prefixes = ["Ab_"]
