@@ -31,6 +31,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<ILoginService, LoginService>();
 builder.Services.AddScoped<IOrganisationService, OrganisationService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>(); // 新增订阅服务
+builder.Services.AddScoped<IResponseChartService, ResponseChartService>();
 
 // 从环境变量构建数据库连接字符串
 var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL");
