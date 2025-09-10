@@ -4,6 +4,7 @@
 - [Response Chart API](#response-chart-api)
 - [Customer Satisfaction API](#customer-satisfaction-api)
 - [Customer Satisfaction Trend API](#customer-satisfaction-trend-api)
+- [NPS (Net Promoter Score) API](#nps-net-promoter-score-api)
 - [Future APIs](#future-apis)
 
 ## Response Chart API
@@ -567,6 +568,391 @@ curl -X GET "http://localhost:5153/api/charts/customer-satisfaction-trend?survey
 curl -X GET "http://localhost:5153/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1" \
   -H "accept: application/json"
 ```
+
+---
+
+## NPS (Net Promoter Score) API
+
+### Overview
+The NPS API provides a comprehensive Net Promoter Score analysis, returning both the calculated NPS score and detailed distribution data in a single endpoint. This unified API follows efficient database querying practices and shared filter logic.
+
+## API Details
+
+### Get NPS Data
+
+**Endpoint:** `GET /api/charts/nps`
+
+**Description:** Returns Net Promoter Score and distribution data based on survey ID and optional filter conditions. The API calculates the NPS score using the standard formula: `(Promoters - Detractors) / Total * 100`.
+
+### Request Parameters
+
+| Parameter | Type | Required | Description | Example |
+|-----------|------|----------|-------------|---------|
+| `surveyId` | `string (UUID)` | Yes | Survey ID | `8dff523d-2a46-4ee3-8017-614af3813b32` |
+| `gender` | `string` | No | Gender filter | `1` (Male), `2` (Female) |
+| `participantType` | `string` | No | Participant type filter | `1`, `2`, `3`, etc. |
+| `period` | `string` | No | Time period filter | Currently not implemented |
+
+### Request Examples
+
+```bash
+# Get all NPS data
+GET /api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32
+
+# Filter by gender (male participants only)
+GET /api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1
+
+# Filter by gender (female participants only)
+GET /api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2
+
+# Filter by both gender and participant type
+GET /api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1
+```
+
+### Response Format
+
+```json
+{
+  "success": true,
+  "message": "NPS data retrieved successfully",
+  "data": {
+    "npsScore": 25,
+    "distribution": {
+      "promoterCount": 150,
+      "passiveCount": 75,
+      "detractorCount": 100,
+      "totalCount": 325,
+      "promoterPercentage": 46.2,
+      "passivePercentage": 23.1,
+      "detractorPercentage": 30.8
+    }
+  }
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `npsScore` | `integer` | Net Promoter Score (-100 to 100) |
+| `distribution.promoterCount` | `integer` | Number of promoters (score 9-10) |
+| `distribution.passiveCount` | `integer` | Number of passive respondents (score 7-8) |
+| `distribution.detractorCount` | `integer` | Number of detractors (score 0-6) |
+| `distribution.totalCount` | `integer` | Total number of respondents |
+| `distribution.promoterPercentage` | `decimal` | Percentage of promoters (rounded to 1 decimal) |
+| `distribution.passivePercentage` | `decimal` | Percentage of passive respondents (rounded to 1 decimal) |
+| `distribution.detractorPercentage` | `decimal` | Percentage of detractors (rounded to 1 decimal) |
+
+### NPS Score Calculation
+
+The NPS score is calculated using the standard formula:
+```
+NPS Score = ((Promoters - Detractors) / Total Respondents) × 100
+```
+
+- **Promoters**: Respondents with NPS group `3` (typically scores 9-10)
+- **Passive**: Respondents with NPS group `2` (typically scores 7-8)  
+- **Detractors**: Respondents with NPS group `1` (typically scores 0-6)
+
+### Example Response Data
+
+#### All Participants
+```json
+{
+  "success": true,
+  "message": "NPS data retrieved successfully",
+  "data": {
+    "npsScore": 25,
+    "distribution": {
+      "promoterCount": 150,
+      "passiveCount": 75,
+      "detractorCount": 100,
+      "totalCount": 325,
+      "promoterPercentage": 46.2,
+      "passivePercentage": 23.1,
+      "detractorPercentage": 30.8
+    }
+  }
+}
+```
+
+#### Male Participants Only (gender=1)
+```json
+{
+  "success": true,
+  "message": "NPS data retrieved successfully",
+  "data": {
+    "npsScore": 30,
+    "distribution": {
+      "promoterCount": 85,
+      "passiveCount": 40,
+      "detractorCount": 50,
+      "totalCount": 175,
+      "promoterPercentage": 48.6,
+      "passivePercentage": 22.9,
+      "detractorPercentage": 28.6
+    }
+  }
+}
+```
+
+#### Female Participants Only (gender=2)
+```json
+{
+  "success": true,
+  "message": "NPS data retrieved successfully",
+  "data": {
+    "npsScore": 20,
+    "distribution": {
+      "promoterCount": 65,
+      "passiveCount": 35,
+      "detractorCount": 50,
+      "totalCount": 150,
+      "promoterPercentage": 43.3,
+      "passivePercentage": 23.3,
+      "detractorPercentage": 33.3
+    }
+  }
+}
+```
+
+### Error Responses
+
+#### Invalid Survey ID
+```json
+{
+  "success": false,
+  "message": "Invalid survey ID format",
+  "data": null
+}
+```
+
+#### No Data Found
+```json
+{
+  "success": true,
+  "message": "NPS data retrieved successfully",
+  "data": {
+    "npsScore": 0,
+    "distribution": {
+      "promoterCount": 0,
+      "passiveCount": 0,
+      "detractorCount": 0,
+      "totalCount": 0,
+      "promoterPercentage": 0.0,
+      "passivePercentage": 0.0,
+      "detractorPercentage": 0.0
+    }
+  }
+}
+```
+
+#### Server Error
+```json
+{
+  "success": false,
+  "message": "An error occurred while getting NPS data",
+  "data": null
+}
+```
+
+## Frontend Integration Examples
+
+### JavaScript/Fetch
+```javascript
+// Get NPS data for all participants
+async function getNPSData(surveyId) {
+    try {
+        const response = await fetch(`/api/charts/nps?surveyId=${surveyId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const { npsScore, distribution } = result.data;
+            console.log(`NPS Score: ${npsScore}`);
+            console.log(`Total Responses: ${distribution.totalCount}`);
+            console.log(`Promoters: ${distribution.promoterCount} (${distribution.promoterPercentage}%)`);
+            console.log(`Passive: ${distribution.passiveCount} (${distribution.passivePercentage}%)`);
+            console.log(`Detractors: ${distribution.detractorCount} (${distribution.detractorPercentage}%)`);
+            return result.data;
+        } else {
+            console.error('Error:', result.message);
+        }
+    } catch (error) {
+        console.error('Network error:', error);
+    }
+}
+
+// Get filtered NPS data
+async function getFilteredNPSData(surveyId, filters = {}) {
+    const params = new URLSearchParams({ surveyId });
+    
+    if (filters.gender) params.append('gender', filters.gender);
+    if (filters.participantType) params.append('participantType', filters.participantType);
+    
+    try {
+        const response = await fetch(`/api/charts/nps?${params}`);
+        const result = await response.json();
+        return result.success ? result.data : null;
+    } catch (error) {
+        console.error('Error fetching NPS data:', error);
+        return null;
+    }
+}
+
+// Usage examples
+getNPSData('8dff523d-2a46-4ee3-8017-614af3813b32');
+getFilteredNPSData('8dff523d-2a46-4ee3-8017-614af3813b32', { gender: '1' });
+getFilteredNPSData('8dff523d-2a46-4ee3-8017-614af3813b32', { gender: '2', participantType: '1' });
+```
+
+### React Hook Example
+```jsx
+import { useState, useEffect } from 'react';
+
+function useNPSData(surveyId, filters = {}) {
+    const [npsData, setNPSData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        async function fetchNPSData() {
+            setLoading(true);
+            setError(null);
+            
+            try {
+                const params = new URLSearchParams({ surveyId });
+                if (filters.gender) params.append('gender', filters.gender);
+                if (filters.participantType) params.append('participantType', filters.participantType);
+                
+                const response = await fetch(`/api/charts/nps?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    setNPSData(result.data);
+                } else {
+                    setError(result.message);
+                }
+            } catch (err) {
+                setError('Failed to fetch NPS data');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        if (surveyId) {
+            fetchNPSData();
+        }
+    }, [surveyId, filters.gender, filters.participantType]);
+
+    return { npsData, loading, error };
+}
+
+// Component usage
+function NPSChart({ surveyId, filters }) {
+    const { npsData, loading, error } = useNPSData(surveyId, filters);
+
+    if (loading) return <div>Loading NPS data...</div>;
+    if (error) return <div>Error: {error}</div>;
+    if (!npsData) return <div>No NPS data available</div>;
+
+    return (
+        <div className="nps-chart">
+            <h3>Net Promoter Score: {npsData.npsScore}</h3>
+            <div className="nps-distribution">
+                <div>Promoters: {npsData.distribution.promoterCount} ({npsData.distribution.promoterPercentage}%)</div>
+                <div>Passive: {npsData.distribution.passiveCount} ({npsData.distribution.passivePercentage}%)</div>
+                <div>Detractors: {npsData.distribution.detractorCount} ({npsData.distribution.detractorPercentage}%)</div>
+                <div>Total: {npsData.distribution.totalCount}</div>
+            </div>
+        </div>
+    );
+}
+```
+
+### Chart.js Integration Example
+```javascript
+// Create NPS distribution chart using Chart.js
+function createNPSChart(npsData) {
+    const ctx = document.getElementById('npsChart').getContext('2d');
+    
+    return new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Promoters', 'Passive', 'Detractors'],
+            datasets: [{
+                data: [
+                    npsData.distribution.promoterCount,
+                    npsData.distribution.passiveCount,
+                    npsData.distribution.detractorCount
+                ],
+                backgroundColor: [
+                    '#4CAF50', // Green for promoters
+                    '#FFC107', // Yellow for passive
+                    '#F44336'  // Red for detractors
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: `NPS Score: ${npsData.npsScore}`
+                },
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+```
+
+## Testing Instructions
+
+### Manual Testing
+
+1. **Test all participants:**
+   ```bash
+   curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+   ```
+
+2. **Test gender filter (male):**
+   ```bash
+   curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1"
+   ```
+
+3. **Test gender filter (female):**
+   ```bash
+   curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2"
+   ```
+
+4. **Test combined filters:**
+   ```bash
+   curl "http://localhost:5153/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1"
+   ```
+
+5. **Test invalid survey ID:**
+   ```bash
+   curl "http://localhost:5153/api/charts/nps?surveyId=invalid-id"
+   ```
+
+### Expected Results
+
+- **All participants**: Should return overall NPS score and distribution
+- **Gender filters**: Should return filtered data with appropriate counts and percentages
+- **Combined filters**: Should apply all filters simultaneously
+- **Invalid survey ID**: Should return a 400 error with appropriate message
+- **No data**: Should return zero values with success status
+
+### Verification Points
+
+1. **NPS Score Calculation**: Verify that `(promoterCount - detractorCount) / totalCount * 100` equals the returned NPS score
+2. **Percentage Calculation**: Verify that percentages sum to 100% (allowing for rounding)
+3. **Count Consistency**: Verify that `promoterCount + passiveCount + detractorCount = totalCount`
+4. **Filter Effectiveness**: Verify that applying filters reduces the total count appropriately
+5. **Response Format**: Verify all required fields are present and have correct data types
 
 ---
 

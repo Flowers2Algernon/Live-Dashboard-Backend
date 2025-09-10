@@ -34,6 +34,7 @@ builder.Services.AddScoped<ISubscriptionService, SubscriptionService>(); // 新�
 builder.Services.AddScoped<IResponseChartService, ResponseChartService>();
 builder.Services.AddScoped<ICustomerSatisfactionService, CustomerSatisfactionService>();
 builder.Services.AddScoped<ICustomerSatisfactionTrendService, CustomerSatisfactionTrendService>();
+builder.Services.AddScoped<INPSService, NPSService>();
 
 // 从环境变量构建数据库连接字符串
 var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL");
