@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LERD.Application.Services;
 
-public class ResponseChartService : IResponseChartService
+public class ResponseChartService : BaseChartService, IResponseChartService
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<ResponseChartService> _logger;
@@ -31,20 +31,10 @@ public class ResponseChartService : IResponseChartService
 
     public async Task<ResponseChartData> GetResponseChartDataAsync(Guid surveyId, ChartFilters filters)
     {
-        var sql = @"
-            WITH response_records AS (
-                SELECT 
-                    response_element->>'Facility' as facility_code,
-                    response_element->>'Gender' as gender,
-                    response_element->>'ParticipantType' as participant_type
-                FROM survey_responses sr,
-                     jsonb_array_elements(sr.response_data) as response_element
-                WHERE sr.survey_id = @surveyId
-                  AND response_element->>'Satisfaction' IS NOT NULL
-                  AND response_element->>'NPS_NPS_GROUP' IS NOT NULL
-                  AND (@gender IS NULL OR response_element->>'Gender' = @gender)
-                  AND (@participantType IS NULL OR response_element->>'ParticipantType' = @participantType)
-            )
+        var baseCTE = BuildBaseResponseCTE(filters);
+        
+        var sql = $@"
+            {baseCTE}
             SELECT 
                 (SELECT COUNT(*) FROM response_records) as total_participants,
                 facility_code,
@@ -58,9 +48,8 @@ public class ResponseChartService : IResponseChartService
         await connection.OpenAsync();
 
         using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.Add(new NpgsqlParameter("surveyId", NpgsqlDbType.Uuid) { Value = surveyId });
-        command.Parameters.Add(new NpgsqlParameter("gender", NpgsqlDbType.Text) { Value = (object?)filters.Gender ?? DBNull.Value });
-        command.Parameters.Add(new NpgsqlParameter("participantType", NpgsqlDbType.Text) { Value = (object?)filters.ParticipantType ?? DBNull.Value });
+        AddSurveyIdParameter(command, surveyId);
+        AddFilterParameters(command, filters);
 
         var regions = new List<RegionData>();
         var totalParticipants = 0;
