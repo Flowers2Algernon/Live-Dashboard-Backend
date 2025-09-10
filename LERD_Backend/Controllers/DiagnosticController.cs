@@ -106,5 +106,69 @@ namespace LERD_Backend.Controllers
                 });
             }
         }
+
+        [HttpGet("connection-error")]
+        public async Task<IActionResult> TestConnectionWithError()
+        {
+            try
+            {
+                // 获取完整的连接字符串
+                var connectionString = _context.Database.GetConnectionString();
+                
+                // 尝试连接并捕获详细错误
+                var canConnect = await _context.Database.CanConnectAsync();
+                
+                if (!canConnect)
+                {
+                    // 尝试手动连接获取更详细的错误
+                    using (var connection = _context.Database.GetDbConnection())
+                    {
+                        try
+                        {
+                            await connection.OpenAsync();
+                            await connection.CloseAsync();
+                        }
+                        catch (Exception connEx)
+                        {
+                            return Ok(new
+                            {
+                                success = false,
+                                message = "Connection test failed",
+                                data = new
+                                {
+                                    connectionString = connectionString,
+                                    canConnect = false,
+                                    connectionError = connEx.Message,
+                                    innerException = connEx.InnerException?.Message,
+                                    stackTrace = connEx.StackTrace?.Split('\n').Take(5).ToArray()
+                                }
+                            });
+                        }
+                    }
+                }
+                
+                return Ok(new
+                {
+                    success = true,
+                    message = "Connection successful",
+                    data = new
+                    {
+                        connectionString = connectionString,
+                        canConnect = true
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Diagnostic failed",
+                    error = ex.Message,
+                    innerException = ex.InnerException?.Message,
+                    stackTrace = ex.StackTrace?.Split('\n').Take(5).ToArray()
+                });
+            }
+        }
     }
 }
