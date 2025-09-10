@@ -5,6 +5,7 @@
 - [Customer Satisfaction API](#customer-satisfaction-api)
 - [Customer Satisfaction Trend API](#customer-satisfaction-trend-api)
 - [NPS (Net Promoter Score) API](#nps-net-promoter-score-api)
+- [Service Attribute API](#service-attribute-api)
 - [Future APIs](#future-apis)
 
 ## Response Chart API
@@ -953,6 +954,583 @@ function createNPSChart(npsData) {
 3. **Count Consistency**: Verify that `promoterCount + passiveCount + detractorCount = totalCount`
 4. **Filter Effectiveness**: Verify that applying filters reduces the total count appropriately
 5. **Response Format**: Verify all required fields are present and have correct data types
+
+---
+
+## Service Attribute API
+
+### Overview
+The Service Attribute API provides a comprehensive analysis of service attributes with dynamic attribute detection and chart-level filtering. This is the most complex chart API as it supports both traditional demographic filters and dynamic attribute selection filters. The API automatically detects available attributes from survey data and allows filtering to specific attributes of interest.
+
+## API Details
+
+### Get Service Attribute Data
+
+**Endpoint:** `GET /api/charts/service-attributes`
+
+**Description:** Returns service attribute analysis data with dynamic attribute detection, supporting both demographic filters and chart-level attribute selection filters. The API analyzes attributes starting with `Ab_` prefix in survey response data.
+
+### Request Parameters
+
+| Parameter | Type | Required | Description | Example |
+|-----------|------|----------|-------------|---------|
+| `surveyId` | `string (UUID)` | Yes | Survey ID | `8dff523d-2a46-4ee3-8017-614af3813b32` |
+| `gender` | `string` | No | Gender filter | `1` (Male), `2` (Female) |
+| `participantType` | `string` | No | Participant type filter | `1`, `2`, `3`, etc. |
+| `period` | `string` | No | Time period filter | Currently not implemented |
+| `selectedAttributes` | `string[]` | No | Chart-level attribute filter | `["Safety", "Activities"]` |
+
+### Dynamic Attribute Detection
+
+The API automatically detects available attributes from survey data by scanning for fields with the `Ab_` prefix:
+
+| Database Field | Mapped Display Name |
+|----------------|-------------------|
+| `Ab_Safety` | "Safety & Security" |
+| `Ab_Location` | "Village Location Access" |
+| `Ab_Activities` | "Activity Availability" |
+| `Ab_Facilities` | "Facilities" |
+| `Ab_Garden care` | "Garden Care" |
+| `Ab_Staff service` | "Staff Service" |
+
+### Value Mapping
+
+Service attribute responses use a 4-point scale:
+
+| Database Value | Meaning |
+|---------------|---------|
+| `"1"` | "Never" |
+| `"2"` | "Some of the time" |
+| `"3"` | "Most of the time" |
+| `"4"` | "Always" |
+
+### Request Examples
+
+```bash
+# Get all service attribute data
+GET /api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32
+
+# Filter by gender (male participants only)
+GET /api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1
+
+# Filter by gender (female participants only)
+GET /api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2
+
+# Filter to specific attributes only
+GET /api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&selectedAttributes=Safety&selectedAttributes=Activities
+
+# Combined demographic and attribute filtering
+GET /api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&selectedAttributes=Safety&selectedAttributes=Facilities
+```
+
+### Response Format
+
+```json
+{
+  "success": true,
+  "message": "Service attribute data retrieved successfully",
+  "data": {
+    "attributes": [
+      {
+        "attributeName": "Safety & Security",
+        "totalResponses": 170,
+        "validResponses": 170,
+        "alwaysCount": 47,
+        "mostCount": 39,
+        "alwaysPercentage": 27.6,
+        "mostPercentage": 22.9,
+        "criteria80Percentage": 80.0,
+        "criteria60Percentage": 60.0
+      }
+    ],
+    "availableAttributes": ["Safety", "Activities", "Facilities", "Garden care", "Location", "Staff service"]
+  }
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `attributes` | `array` | Array of attribute analysis results |
+| `attributes[].attributeName` | `string` | Display name of the attribute |
+| `attributes[].totalResponses` | `integer` | Total number of survey responses |
+| `attributes[].validResponses` | `integer` | Number of valid responses for this attribute |
+| `attributes[].alwaysCount` | `integer` | Number of "Always" responses (value "4") |
+| `attributes[].mostCount` | `integer` | Number of "Most of the time" responses (value "3") |
+| `attributes[].alwaysPercentage` | `decimal` | Percentage of "Always" responses (rounded to 1 decimal) |
+| `attributes[].mostPercentage` | `decimal` | Percentage of "Most of the time" responses (rounded to 1 decimal) |
+| `attributes[].criteria80Percentage` | `decimal` | 80% benchmark line (fixed at 80.0) |
+| `attributes[].criteria60Percentage` | `decimal` | 60% benchmark line (fixed at 60.0) |
+| `availableAttributes` | `array` | List of all available attributes for filtering |
+
+### Calculation Logic
+
+- **Always Percentage**: `(alwaysCount / validResponses) × 100`
+- **Most Percentage**: `(mostCount / validResponses) × 100`
+- **Combined Satisfaction**: `alwaysPercentage + mostPercentage` (represents satisfied customers)
+- **Benchmark Comparison**: Results can be compared against 80% and 60% criteria lines
+
+### Example Response Data
+
+#### All Participants - All Attributes
+```json
+{
+  "success": true,
+  "message": "Service attribute data retrieved successfully",
+  "data": {
+    "attributes": [
+      {
+        "attributeName": "Safety & Security",
+        "totalResponses": 170,
+        "validResponses": 170,
+        "alwaysCount": 47,
+        "mostCount": 39,
+        "alwaysPercentage": 27.6,
+        "mostPercentage": 22.9,
+        "criteria80Percentage": 80.0,
+        "criteria60Percentage": 60.0
+      },
+      {
+        "attributeName": "Activity Availability",
+        "totalResponses": 170,
+        "validResponses": 170,
+        "alwaysCount": 45,
+        "mostCount": 44,
+        "alwaysPercentage": 26.5,
+        "mostPercentage": 25.9,
+        "criteria80Percentage": 80.0,
+        "criteria60Percentage": 60.0
+      },
+      {
+        "attributeName": "Facilities",
+        "totalResponses": 170,
+        "validResponses": 170,
+        "alwaysCount": 41,
+        "mostCount": 42,
+        "alwaysPercentage": 24.1,
+        "mostPercentage": 24.7,
+        "criteria80Percentage": 80.0,
+        "criteria60Percentage": 60.0
+      }
+    ],
+    "availableAttributes": ["Safety", "Activities", "Facilities", "Garden care", "Location", "Staff service"]
+  }
+}
+```
+
+#### Male Participants Only (gender=1)
+```json
+{
+  "success": true,
+  "message": "Service attribute data retrieved successfully",
+  "data": {
+    "attributes": [
+      {
+        "attributeName": "Safety & Security",
+        "totalResponses": 83,
+        "validResponses": 83,
+        "alwaysCount": 23,
+        "mostCount": 21,
+        "alwaysPercentage": 27.7,
+        "mostPercentage": 25.3,
+        "criteria80Percentage": 80.0,
+        "criteria60Percentage": 60.0
+      },
+      {
+        "attributeName": "Activity Availability",
+        "totalResponses": 83,
+        "validResponses": 83,
+        "alwaysCount": 26,
+        "mostCount": 22,
+        "alwaysPercentage": 31.3,
+        "mostPercentage": 26.5,
+        "criteria80Percentage": 80.0,
+        "criteria60Percentage": 60.0
+      }
+    ],
+    "availableAttributes": ["Safety", "Activities", "Facilities", "Garden care", "Location", "Staff service"]
+  }
+}
+```
+
+#### Selected Attributes Only
+```json
+{
+  "success": true,
+  "message": "Service attribute data retrieved successfully",
+  "data": {
+    "attributes": [
+      {
+        "attributeName": "Safety & Security",
+        "totalResponses": 170,
+        "validResponses": 170,
+        "alwaysCount": 47,
+        "mostCount": 39,
+        "alwaysPercentage": 27.6,
+        "mostPercentage": 22.9,
+        "criteria80Percentage": 80.0,
+        "criteria60Percentage": 60.0
+      },
+      {
+        "attributeName": "Activity Availability",
+        "totalResponses": 170,
+        "validResponses": 170,
+        "alwaysCount": 45,
+        "mostCount": 44,
+        "alwaysPercentage": 26.5,
+        "mostPercentage": 25.9,
+        "criteria80Percentage": 80.0,
+        "criteria60Percentage": 60.0
+      }
+    ],
+    "availableAttributes": ["Safety", "Activities", "Facilities", "Garden care", "Location", "Staff service"]
+  }
+}
+```
+
+### Error Responses
+
+#### Invalid Survey ID
+```json
+{
+  "success": false,
+  "message": "Valid survey_id is required",
+  "data": null
+}
+```
+
+#### No Data Found
+```json
+{
+  "success": true,
+  "message": "Service attribute data retrieved successfully",
+  "data": {
+    "attributes": [],
+    "availableAttributes": []
+  }
+}
+```
+
+#### Server Error
+```json
+{
+  "success": false,
+  "message": "An error occurred while getting service attribute data",
+  "data": null
+}
+```
+
+## Frontend Integration Examples
+
+### JavaScript/Fetch
+```javascript
+// Get all service attribute data
+async function getServiceAttributeData(surveyId) {
+    try {
+        const response = await fetch(`/api/charts/service-attributes?surveyId=${surveyId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log(`Found ${result.data.attributes.length} attributes`);
+            result.data.attributes.forEach(attr => {
+                const combinedSatisfaction = attr.alwaysPercentage + attr.mostPercentage;
+                console.log(`${attr.attributeName}: ${combinedSatisfaction.toFixed(1)}% satisfied (${attr.alwaysCount + attr.mostCount}/${attr.validResponses})`);
+            });
+            return result.data;
+        } else {
+            console.error('Error:', result.message);
+        }
+    } catch (error) {
+        console.error('Network error:', error);
+    }
+}
+
+// Get filtered service attribute data
+async function getFilteredServiceAttributeData(surveyId, options = {}) {
+    const params = new URLSearchParams({ surveyId });
+    
+    if (options.gender) params.append('gender', options.gender);
+    if (options.participantType) params.append('participantType', options.participantType);
+    if (options.selectedAttributes) {
+        options.selectedAttributes.forEach(attr => params.append('selectedAttributes', attr));
+    }
+    
+    try {
+        const response = await fetch(`/api/charts/service-attributes?${params}`);
+        const result = await response.json();
+        return result.success ? result.data : null;
+    } catch (error) {
+        console.error('Error fetching service attribute data:', error);
+        return null;
+    }
+}
+
+// Usage examples
+getServiceAttributeData('8dff523d-2a46-4ee3-8017-614af3813b32');
+getFilteredServiceAttributeData('8dff523d-2a46-4ee3-8017-614af3813b32', { gender: '1' });
+getFilteredServiceAttributeData('8dff523d-2a46-4ee3-8017-614af3813b32', { 
+    selectedAttributes: ['Safety', 'Activities'] 
+});
+getFilteredServiceAttributeData('8dff523d-2a46-4ee3-8017-614af3813b32', { 
+    gender: '1', 
+    selectedAttributes: ['Safety', 'Facilities'] 
+});
+```
+
+### React Hook Example
+```jsx
+import { useState, useEffect } from 'react';
+
+function useServiceAttributeData(surveyId, filters = {}) {
+    const [attributeData, setAttributeData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        async function fetchAttributeData() {
+            setLoading(true);
+            setError(null);
+            
+            try {
+                const params = new URLSearchParams({ surveyId });
+                if (filters.gender) params.append('gender', filters.gender);
+                if (filters.participantType) params.append('participantType', filters.participantType);
+                if (filters.selectedAttributes) {
+                    filters.selectedAttributes.forEach(attr => params.append('selectedAttributes', attr));
+                }
+                
+                const response = await fetch(`/api/charts/service-attributes?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    setAttributeData(result.data);
+                } else {
+                    setError(result.message);
+                }
+            } catch (err) {
+                setError('Failed to fetch service attribute data');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        if (surveyId) {
+            fetchAttributeData();
+        }
+    }, [surveyId, filters.gender, filters.participantType, JSON.stringify(filters.selectedAttributes)]);
+
+    return { attributeData, loading, error };
+}
+
+// Component usage
+function ServiceAttributeChart({ surveyId, filters }) {
+    const { attributeData, loading, error } = useServiceAttributeData(surveyId, filters);
+
+    if (loading) return <div>Loading service attribute data...</div>;
+    if (error) return <div>Error: {error}</div>;
+    if (!attributeData) return <div>No service attribute data available</div>;
+
+    return (
+        <div className="service-attribute-chart">
+            <h3>Service Attributes Analysis</h3>
+            <div className="attribute-list">
+                {attributeData.attributes.map((attr, index) => {
+                    const combinedSatisfaction = attr.alwaysPercentage + attr.mostPercentage;
+                    const meetsTarget = combinedSatisfaction >= 80;
+                    
+                    return (
+                        <div key={index} className={`attribute-item ${meetsTarget ? 'meets-target' : 'below-target'}`}>
+                            <h4>{attr.attributeName}</h4>
+                            <div className="satisfaction-breakdown">
+                                <div>Always: {attr.alwaysCount} ({attr.alwaysPercentage}%)</div>
+                                <div>Most of the time: {attr.mostCount} ({attr.mostPercentage}%)</div>
+                                <div className="combined-satisfaction">
+                                    Combined Satisfaction: {combinedSatisfaction.toFixed(1)}%
+                                </div>
+                            </div>
+                            <div className="progress-bar">
+                                <div 
+                                    className="progress-fill"
+                                    style={{ width: `${Math.min(combinedSatisfaction, 100)}%` }}
+                                ></div>
+                                <div className="benchmark-line" style={{ left: '80%' }}>80%</div>
+                                <div className="benchmark-line" style={{ left: '60%' }}>60%</div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            
+            <div className="available-attributes">
+                <h4>Available Attributes for Filtering:</h4>
+                <div className="attribute-tags">
+                    {attributeData.availableAttributes.map((attr, index) => (
+                        <span key={index} className="attribute-tag">{attr}</span>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+```
+
+### Chart.js Integration Example
+```javascript
+// Create stacked bar chart for service attributes
+function createServiceAttributeChart(attributeData) {
+    const ctx = document.getElementById('serviceAttributeChart').getContext('2d');
+    
+    const labels = attributeData.attributes.map(attr => attr.attributeName);
+    const alwaysData = attributeData.attributes.map(attr => attr.alwaysPercentage);
+    const mostData = attributeData.attributes.map(attr => attr.mostPercentage);
+    
+    return new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Always',
+                    data: alwaysData,
+                    backgroundColor: '#4CAF50',
+                    stack: 'satisfaction'
+                },
+                {
+                    label: 'Most of the time',
+                    data: mostData,
+                    backgroundColor: '#8BC34A',
+                    stack: 'satisfaction'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Service Attributes Satisfaction'
+                },
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'Service Attributes'
+                    }
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Percentage (%)'
+                    }
+                }
+            },
+            annotation: {
+                annotations: {
+                    benchmark80: {
+                        type: 'line',
+                        yMin: 80,
+                        yMax: 80,
+                        borderColor: 'red',
+                        borderWidth: 2,
+                        label: {
+                            content: '80% Target',
+                            enabled: true,
+                            position: 'end'
+                        }
+                    },
+                    benchmark60: {
+                        type: 'line',
+                        yMin: 60,
+                        yMax: 60,
+                        borderColor: 'orange',
+                        borderWidth: 1,
+                        label: {
+                            content: '60% Minimum',
+                            enabled: true,
+                            position: 'end'
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+```
+
+## Testing Instructions
+
+### Manual Testing
+
+1. **Test all attributes data:**
+   ```bash
+   curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+   ```
+
+2. **Test gender filter (male):**
+   ```bash
+   curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1"
+   ```
+
+3. **Test gender filter (female):**
+   ```bash
+   curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2"
+   ```
+
+4. **Test selected attributes:**
+   ```bash
+   curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&selectedAttributes=Safety&selectedAttributes=Activities"
+   ```
+
+5. **Test combined filters:**
+   ```bash
+   curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&selectedAttributes=Safety&selectedAttributes=Facilities"
+   ```
+
+6. **Test invalid survey ID:**
+   ```bash
+   curl "http://localhost:5153/api/charts/service-attributes?surveyId=invalid-id"
+   ```
+
+### Expected Results
+
+- **All attributes**: Should return all 6 service attributes with full participant data
+- **Gender filters**: Should return filtered data with reduced participant counts
+- **Selected attributes**: Should return only the specified attributes
+- **Combined filters**: Should apply both demographic and attribute filters
+- **Invalid survey ID**: Should return a 400 error with appropriate message
+- **No data**: Should return empty arrays with success status
+
+### Verification Points
+
+1. **Dynamic Attribute Detection**: Verify that `availableAttributes` array contains all attributes found in the survey data
+2. **Attribute Name Mapping**: Verify that display names match the mapping (e.g., "Safety" → "Safety & Security")
+3. **Percentage Calculation**: Verify that `alwaysPercentage = (alwaysCount / validResponses) × 100`
+4. **Filter Effectiveness**: Verify that demographic filters reduce participant counts appropriately
+5. **Attribute Selection**: Verify that `selectedAttributes` parameter filters the returned attributes
+6. **Response Consistency**: Verify that `totalResponses` matches between all attributes for the same filter set
+7. **Benchmark Values**: Verify that criteria percentages are always 80.0 and 60.0
+
+### Advanced Testing Scenarios
+
+```bash
+# Test with non-existent attributes (should be ignored)
+curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&selectedAttributes=NonExistent&selectedAttributes=Safety"
+
+# Test with all possible demographic combinations
+curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1"
+
+# Test response format with jq for JSON validation
+curl "http://localhost:5153/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" | jq '.data.attributes[0] | keys'
+```
 
 ---
 

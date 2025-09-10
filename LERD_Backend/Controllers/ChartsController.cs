@@ -14,6 +14,7 @@ public class ChartsController : ControllerBase
     private readonly ICustomerSatisfactionService _customerSatisfactionService;
     private readonly ICustomerSatisfactionTrendService _customerSatisfactionTrendService;
     private readonly INPSService _npsService;
+    private readonly IServiceAttributeService _serviceAttributeService;
     private readonly ILogger<ChartsController> _logger;
 
     public ChartsController(
@@ -21,12 +22,14 @@ public class ChartsController : ControllerBase
         ICustomerSatisfactionService customerSatisfactionService,
         ICustomerSatisfactionTrendService customerSatisfactionTrendService,
         INPSService npsService,
+        IServiceAttributeService serviceAttributeService,
         ILogger<ChartsController> logger)
     {
         _responseChartService = responseChartService;
         _customerSatisfactionService = customerSatisfactionService;
         _customerSatisfactionTrendService = customerSatisfactionTrendService;
         _npsService = npsService;
+        _serviceAttributeService = serviceAttributeService;
         _logger = logger;
     }
 
@@ -207,6 +210,58 @@ public class ChartsController : ControllerBase
             {
                 Success = false,
                 Message = "Internal server error"
+            });
+        }
+    }
+
+    [HttpGet("service-attributes")]
+    public async Task<ActionResult<ApiResponse<ServiceAttributeData>>> GetServiceAttributes(
+        [FromQuery] Guid surveyId,
+        [FromQuery] string? gender = null,
+        [FromQuery] string? participantType = null,
+        [FromQuery] string? period = null,
+        [FromQuery] string[]? selectedAttributes = null) // 图表级别过滤
+    {
+        try
+        {
+            if (surveyId == Guid.Empty)
+            {
+                _logger.LogWarning("GetServiceAttributes called with empty survey ID");
+                return BadRequest(new ApiResponse<ServiceAttributeData>
+                {
+                    Success = false,
+                    Message = "Valid survey_id is required"
+                });
+            }
+
+            var filters = new ServiceAttributeFilters
+            {
+                Gender = gender,
+                ParticipantType = participantType,
+                Period = period,
+                SelectedAttributes = selectedAttributes?.ToList()
+            };
+
+            _logger.LogInformation("Getting service attributes for survey {SurveyId} with filters: Gender={Gender}, ParticipantType={ParticipantType}, SelectedAttributes={SelectedAttributes}", 
+                surveyId, filters.Gender, filters.ParticipantType, filters.SelectedAttributes != null ? string.Join(",", filters.SelectedAttributes) : "None");
+
+            var data = await _serviceAttributeService.GetServiceAttributeDataAsync(surveyId, filters);
+
+            return Ok(new ApiResponse<ServiceAttributeData>
+            {
+                Success = true,
+                Message = "Service attribute data retrieved successfully",
+                Data = data
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting service attribute data for survey {SurveyId}", surveyId);
+
+            return StatusCode(500, new ApiResponse<ServiceAttributeData>
+            {
+                Success = false,
+                Message = "An error occurred while getting service attribute data"
             });
         }
     }
