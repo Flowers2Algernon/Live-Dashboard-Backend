@@ -62,7 +62,7 @@ namespace LERD_Backend.Controllers
                         {
                             canConnect = canConnect,
                             connectionState = _context.Database.GetConnectionString()?.Length > 20 ? 
-                                $"{_context.Database.GetConnectionString().Substring(0, 20)}..." : 
+                                $"{_context.Database.GetConnectionString()!.Substring(0, 20)}..." : 
                                 _context.Database.GetConnectionString()
                         }
                     }

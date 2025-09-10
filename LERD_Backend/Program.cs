@@ -48,12 +48,12 @@ if (!string.IsNullOrEmpty(connectionString) && connectionString.StartsWith("post
     {
         var uri = new Uri(connectionString);
         var host = uri.Host;
-        var port = uri.Port != -1 ? uri.Port : 5432;
+        var uriPort = uri.Port != -1 ? uri.Port : 5432;
         var database = uri.AbsolutePath.TrimStart('/');
         var username = uri.UserInfo.Split(':')[0];
         var password = uri.UserInfo.Split(':')[1];
         
-        connectionString = $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require";
+        connectionString = $"Host={host};Port={uriPort};Database={database};Username={username};Password={password};SSL Mode=Require";
     }
     catch (Exception ex)
     {
