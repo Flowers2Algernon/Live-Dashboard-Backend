@@ -2,6 +2,8 @@
 
 ## Table of Contents
 - [Response Chart API](#response-chart-api)
+- [Customer Satisfaction API](#customer-satisfaction-api)
+- [Customer Satisfaction Trend API](#customer-satisfaction-trend-api)
 - [Future APIs](#future-apis)
 
 ## Response Chart API
@@ -315,6 +317,254 @@ curl -X GET "http://localhost:5153/api/charts/response?surveyId=8dff523d-2a46-4e
   -H "accept: application/json"
 
 curl -X GET "http://localhost:5153/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1" \
+  -H "accept: application/json"
+```
+
+---
+
+## Customer Satisfaction Trend API
+
+### Overview
+The Customer Satisfaction Trend API retrieves historical customer satisfaction data across multiple years, combining static historical data with real-time database data.
+
+### Get Customer Satisfaction Trend Data
+
+**Endpoint:** `GET /api/charts/customer-satisfaction-trend`
+
+**Description:** Returns customer satisfaction trend data across years based on survey ID and optional filter conditions.
+
+### Request Parameters
+
+| Parameter | Type | Required | Description | Example |
+|-----------|------|----------|-------------|---------|
+| `surveyId` | `string (UUID)` | Yes | Survey ID | `8dff523d-2a46-4ee3-8017-614af3813b32` |
+| `gender` | `string` | No | Gender filter | `1` (Male), `2` (Female) |
+| `participantType` | `string` | No | Participant type filter | `1`, `2`, `3`, etc. |
+| `period` | `string` | No | Time period filter | Currently not implemented |
+
+### Request Examples
+
+```bash
+# Get all participant trend data
+GET /api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32
+
+# Filter by gender
+GET /api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1
+
+# Filter by gender and participant type
+GET /api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1&participantType=1
+```
+
+### Response Format
+
+```json
+{
+  "success": boolean,
+  "message": string,
+  "data": {
+    "years": [
+      {
+        "year": number,
+        "verySatisfiedPercentage": number,
+        "satisfiedPercentage": number,
+        "somewhatSatisfiedPercentage": number,
+        "totalSatisfiedPercentage": number
+      }
+    ]
+  }
+}
+```
+
+### Response Field Descriptions
+
+| Field Name | Type | Description |
+|------------|------|-------------|
+| `success` | `boolean` | Whether the request was successful |
+| `message` | `string` | Error message (empty string on success) |
+| `data.years` | `array` | Array of yearly satisfaction data |
+| `data.years[].year` | `number` | Year of the data |
+| `data.years[].verySatisfiedPercentage` | `number` | Percentage of very satisfied customers (satisfaction code 6) |
+| `data.years[].satisfiedPercentage` | `number` | Percentage of satisfied customers (satisfaction code 5) |
+| `data.years[].somewhatSatisfiedPercentage` | `number` | Percentage of somewhat satisfied customers (satisfaction code 4) |
+| `data.years[].totalSatisfiedPercentage` | `number` | Total percentage of satisfied customers (codes 4, 5, 6) |
+
+### Data Sources
+
+| Year | Data Source | Filter Impact |
+|------|-------------|---------------|
+| `2023` | Static historical data | ❌ No (fixed values) |
+| `2024` | Static historical data | ❌ No (fixed values) |
+| `2025+` | Real database data | ✅ Yes (filtered dynamically) |
+
+**Note**: Historical data (2023-2024) uses predefined static values for consistency. Real-time data is extracted from the `survey_responses` table based on the `EndDate` field.
+
+### Response Examples
+
+#### Successful Response - All Participant Data
+
+```json
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "years": [
+      {
+        "year": 2023,
+        "verySatisfiedPercentage": 13,
+        "satisfiedPercentage": 32,
+        "somewhatSatisfiedPercentage": 38,
+        "totalSatisfiedPercentage": 83
+      },
+      {
+        "year": 2024,
+        "verySatisfiedPercentage": 36,
+        "satisfiedPercentage": 40,
+        "somewhatSatisfiedPercentage": 22,
+        "totalSatisfiedPercentage": 98
+      },
+      {
+        "year": 2025,
+        "verySatisfiedPercentage": 11.8,
+        "satisfiedPercentage": 17.6,
+        "somewhatSatisfiedPercentage": 17.1,
+        "totalSatisfiedPercentage": 46.5
+      }
+    ]
+  }
+}
+```
+
+#### Successful Response - Filtered Data (Gender=1)
+
+```json
+{
+  "success": true,
+  "message": "",
+  "data": {
+    "years": [
+      {
+        "year": 2023,
+        "verySatisfiedPercentage": 13,
+        "satisfiedPercentage": 32,
+        "somewhatSatisfiedPercentage": 38,
+        "totalSatisfiedPercentage": 83
+      },
+      {
+        "year": 2024,
+        "verySatisfiedPercentage": 36,
+        "satisfiedPercentage": 40,
+        "somewhatSatisfiedPercentage": 22,
+        "totalSatisfiedPercentage": 98
+      },
+      {
+        "year": 2025,
+        "verySatisfiedPercentage": 8.4,
+        "satisfiedPercentage": 16.9,
+        "somewhatSatisfiedPercentage": 20.5,
+        "totalSatisfiedPercentage": 45.8
+      }
+    ]
+  }
+}
+```
+
+### Frontend Integration Example
+
+```javascript
+async function getCustomerSatisfactionTrendData(surveyId, filters = {}) {
+  const params = new URLSearchParams({
+    surveyId: surveyId,
+    ...filters
+  });
+  
+  try {
+    const response = await fetch(`/api/charts/customer-satisfaction-trend?${params}`);
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('Trend data for', result.data.years.length, 'years:');
+      result.data.years.forEach(year => {
+        console.log(`${year.year}: ${year.totalSatisfiedPercentage}% satisfied`);
+      });
+      return result.data;
+    } else {
+      console.error('API Error:', result.message);
+      return null;
+    }
+  } catch (error) {
+    console.error('Request failed:', error);
+    return null;
+  }
+}
+
+// Usage examples
+getCustomerSatisfactionTrendData('8dff523d-2a46-4ee3-8017-614af3813b32');
+getCustomerSatisfactionTrendData('8dff523d-2a46-4ee3-8017-614af3813b32', { gender: '1' });
+```
+
+### Chart.js Integration Example
+
+```javascript
+// Example of how to use the trend data with Chart.js
+function createTrendChart(trendData) {
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: trendData.years.map(y => y.year.toString()),
+      datasets: [
+        {
+          label: 'Very Satisfied',
+          data: trendData.years.map(y => y.verySatisfiedPercentage),
+          borderColor: 'rgb(75, 192, 192)',
+          tension: 0.1
+        },
+        {
+          label: 'Satisfied', 
+          data: trendData.years.map(y => y.satisfiedPercentage),
+          borderColor: 'rgb(54, 162, 235)',
+          tension: 0.1
+        },
+        {
+          label: 'Somewhat Satisfied',
+          data: trendData.years.map(y => y.somewhatSatisfiedPercentage),
+          borderColor: 'rgb(255, 205, 86)',
+          tension: 0.1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: {
+          display: true,
+          text: 'Customer Satisfaction Trend'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          title: {
+            display: true,
+            text: 'Percentage (%)'
+          }
+        }
+      }
+    }
+  });
+}
+```
+
+### Testing Commands
+
+```bash
+# cURL test examples
+curl -X GET "http://localhost:5153/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32" \
+  -H "accept: application/json"
+
+curl -X GET "http://localhost:5153/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1" \
   -H "accept: application/json"
 ```
 
