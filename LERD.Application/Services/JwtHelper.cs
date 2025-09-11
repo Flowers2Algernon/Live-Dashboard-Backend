@@ -22,7 +22,8 @@ namespace LERD.Utils
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Username),
-                new Claim("organisation_id", user.OrganisationId.ToString())
+                new Claim("token_type", "access") 
+                // new Claim("organisation_id", user.OrganisationId.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
@@ -44,7 +45,7 @@ namespace LERD.Utils
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim("organisation_id", user.OrganisationId.ToString()),
+                // new Claim("organisation_id", user.OrganisationId.ToString()),
                 new Claim("token_type", "refresh")  // 标记类型
             };
 

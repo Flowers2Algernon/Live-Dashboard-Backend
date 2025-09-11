@@ -7,21 +7,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LERD.Application.Services;
 
-public class AuthService(ApplicationDbContext context, JwtHelper jwtHelper):IAuthService
+public class AuthService(ApplicationDbContext context, JwtHelper jwtHelper) : IAuthService
 {
     public async Task<LoginResponse> ValidateLoginAsync(LoginRequest request)
     {
         var user = await context.User
             .FirstOrDefaultAsync(u =>
-                u.OrganisationId == request.OrganisationId &&
                 u.Username == request.Username &&
                 u.IsActive);
 
         if (user == null)
-            return new LoginResponse { Success = false, Message = "用户不存在或已停用" };
-
-        if (!VerifyPassword(request.Password, user.PasswordHash))
-            return new LoginResponse { Success = false, Message = "密码错误" };
+            return new LoginResponse { Success = false, Message = "The user does not exist or has been deactivated." };
+        // No support password hash at Present
+        // if (!VerifyPassword(request.Password, user.PasswordHash))
+        if(user.PasswordHash != request.Password)
+            return new LoginResponse { Success = false, Message = "Incorrect password" };
 
         user.LastLoginAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
@@ -31,7 +31,7 @@ public class AuthService(ApplicationDbContext context, JwtHelper jwtHelper):IAut
         return new LoginResponse
         {
             Success = true,
-            Message = "登录成功",
+            Message = "Login Successful",
             AccessToken = jwtHelper.GenerateAccessToken(user),
             RefreshToken = jwtHelper.GenerateRefreshToken(user),
             FullName = user.FullName

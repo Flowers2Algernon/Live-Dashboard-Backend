@@ -15,10 +15,15 @@ namespace LERD_Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController(IAuthService authService) : ControllerBase
+    public class AuthController(
+        IAuthService authService,
+        JwtHelper _jwtHelper,
+        IConfiguration _config) : ControllerBase
     {
-        private readonly JwtHelper _jwtHelper;
-        private readonly IConfiguration _config;
+        private readonly IAuthService authService=authService;
+        private readonly JwtHelper _jwtHelper=_jwtHelper;
+        private readonly IConfiguration _config=_config;
+
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
@@ -30,20 +35,33 @@ namespace LERD_Backend.Controllers
         }
 
         [Authorize]
+        [HttpPost("logout")]
+        public IActionResult Logout()
+        {
+            // 无状态 JWT 无法在服务端强制失效 Access Token
+            // 做法：通知前端删除保存的 token (localStorage / cookies)
+            return Ok(new { Message = "Logout successful. Please remove tokens on client side." });
+        }
+        
+        [Authorize]
         [HttpGet("me")]
         public IActionResult GetCurrentUser()
         {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
             var username = User.Identity?.Name;
-            var orgId = User.Claims.FirstOrDefault(c => c.Type == "organisation_id")?.Value;
+            var tokenType = User.Claims.FirstOrDefault(c => c.Type == "token_type")?.Value;
+            // var orgId = User.Claims.FirstOrDefault(c => c.Type == "organisation_id")?.Value;
 
             return Ok(new
             {
+                UserId = userId,
                 Username = username,
-                OrganisationId = orgId,
-                Message = "Token 校验成功"
+                TokenType = tokenType,
+                // OrganisationId = orgId,
+                Message = "Token Verification successful"
             });
         }
-        
+
         [HttpPost("refresh")]
         public IActionResult Refresh([FromBody] RefreshRequest request)
         {
@@ -66,15 +84,15 @@ namespace LERD_Backend.Controllers
                 // 确认是 Refresh Token
                 var typeClaim = principal.Claims.FirstOrDefault(c => c.Type == "token_type")?.Value;
                 if (typeClaim != "refresh")
-                    return Unauthorized(new { Message = "不是有效的 Refresh Token" });
+                    return Unauthorized(new { Message = "Not Valid Refresh Token" });
 
                 var userId = principal.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value;
-                var orgId = principal.Claims.First(c => c.Type == "organisation_id").Value;
+                // var orgId = principal.Claims.First(c => c.Type == "organisation_id").Value;
 
                 var newAccessToken = _jwtHelper.GenerateAccessToken(new User
                 {
                     Id = Guid.Parse(userId),
-                    OrganisationId = Guid.Parse(orgId),
+                    // OrganisationId = Guid.Parse(orgId),
                     Username = principal.Identity?.Name ?? "unknown"
                 });
 
@@ -82,11 +100,8 @@ namespace LERD_Backend.Controllers
             }
             catch
             {
-                return Unauthorized(new { Message = "无效或过期的 Refresh Token" });
+                return Unauthorized(new { Message = "Invalid or expired Refresh Token" });
             }
         }
-
     }
-    
-    
 }
