@@ -4,7 +4,7 @@ namespace LERD_Backend.Services
 {
     public interface ILoginService
     {
-        Task<LoginResponse> ValidateLoginAsync(LoginRequest request);
+        Task<LoginResponse1> ValidateLoginAsync(LoginRequest1 request1);
     }
 
     public class LoginService : ILoginService
@@ -18,32 +18,32 @@ namespace LERD_Backend.Services
             { "student", "student123" }
         };
 
-        public async Task<LoginResponse> ValidateLoginAsync(LoginRequest request)
+        public async Task<LoginResponse1> ValidateLoginAsync(LoginRequest1 request1)
         {
             // 模拟异步操作
             await Task.Delay(100);
 
-            if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
+            if (string.IsNullOrEmpty(request1.Username) || string.IsNullOrEmpty(request1.Password))
             {
-                return new LoginResponse
+                return new LoginResponse1
                 {
                     Success = false,
                     Message = "user name or password cannot be empty"
                 };
             }
 
-            if (_users.TryGetValue(request.Username, out var storedPassword) && 
-                storedPassword == request.Password)
+            if (_users.TryGetValue(request1.Username, out var storedPassword) && 
+                storedPassword == request1.Password)
             {
-                return new LoginResponse
+                return new LoginResponse1
                 {
                     Success = true,
                     Message = "login successful",
-                    Username = request.Username
+                    Username = request1.Username
                 };
             }
 
-            return new LoginResponse
+            return new LoginResponse1
             {
                 Success = false,
                 Message = "user name or password is incorrect"

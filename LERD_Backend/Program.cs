@@ -27,6 +27,7 @@ if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") != "Production"
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ILoginService, LoginService>();
 builder.Services.AddScoped<IOrganisationService, OrganisationService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>(); // 新增订阅服务
@@ -40,49 +41,18 @@ builder.Services.AddScoped<IServiceAttributeService, ServiceAttributeService>();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
                       ?? Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING");
 
-// 检查是否是PostgreSQL URI格式 (postgresql://...)
-if (!string.IsNullOrEmpty(connectionString) && connectionString.StartsWith("postgresql://"))
-{
-    // Railway提供的PostgreSQL URI格式，转换为Npgsql格式
-    try
-    {
-        var uri = new Uri(connectionString);
-        var host = uri.Host;
-        var uriPort = uri.Port != -1 ? uri.Port : 5432;
-        var database = uri.AbsolutePath.TrimStart('/');
-        var username = uri.UserInfo.Split(':')[0];
-        var password = uri.UserInfo.Split(':')[1];
-        
-        connectionString = $"Host={host};Port={uriPort};Database={database};Username={username};Password={password};SSL Mode=Require";
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Failed to parse PostgreSQL URI: {ex.Message}");
-        connectionString = null; // 让它fallback到组件方式
-    }
-}
+// 从环境变量构建数据库连接字符串
+var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL");
+var supabasePassword = Environment.GetEnvironmentVariable("SUPABASE_PASSWORD");
+var dbHost = Environment.GetEnvironmentVariable("SUPABASE_DB_HOST");
+var dbPort = Environment.GetEnvironmentVariable("SUPABASE_DB_PORT");
 
-// Fallback to building connection string from individual components if direct connection string not available
-if (string.IsNullOrEmpty(connectionString))
-{
-    var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL");
-    var supabasePassword = Environment.GetEnvironmentVariable("SUPABASE_PASSWORD");
-    var dbHost = Environment.GetEnvironmentVariable("SUPABASE_DB_HOST");
-    var dbPort = Environment.GetEnvironmentVariable("SUPABASE_DB_PORT");
+// 从 Supabase URL 中提取项目引用 ID
+var hostName = supabaseUrl?.Replace("https://", "").Replace("http://", "");
+var projectRef = hostName?.Split('.')[0]; // 获取项目引用 ID
 
-    // 从 Supabase URL 中提取项目引用 ID
-    var hostName = supabaseUrl?.Replace("https://", "").Replace("http://", "");
-    var projectRef = hostName?.Split('.')[0]; // 获取项目引用 ID
-
-    // 使用环境变量中的 Supabase Transaction pooler 连接字符串格式
-    connectionString = $"Host={dbHost};Port={dbPort};Database=postgres;Username=postgres.{projectRef};Password={supabasePassword};SSL Mode=Require";
-}
-
-// 确保有有效的连接字符串
-if (string.IsNullOrEmpty(connectionString))
-{
-    throw new InvalidOperationException("Database connection string is not configured. Please set SUPABASE_CONNECTION_STRING environment variable.");
-}
+// 使用环境变量中的 Supabase Transaction pooler 连接字符串格式
+var connectionString = $"Host={dbHost};Port={dbPort};Database=postgres;Username=postgres.{projectRef};Password={supabasePassword};SSL Mode=Require";
 
 // 数据库连接
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

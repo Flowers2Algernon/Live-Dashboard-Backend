@@ -11,7 +11,8 @@ namespace LERD.Infrastructure.Data
 
         public DbSet<Organisation> Organisations { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
-
+        public DbSet<User> User { get; set; }
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Organisation entity configuration
