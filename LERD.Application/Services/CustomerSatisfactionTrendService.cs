@@ -22,8 +22,8 @@ public class CustomerSatisfactionTrendService : BaseChartService, ICustomerSatis
 
     public async Task<CustomerSatisfactionTrendData> GetTrendDataAsync(Guid surveyId, ChartFilters filters)
     {
-        _logger.LogInformation("Getting trend data for survey {SurveyId} with filters: Gender={Gender}, ParticipantType={ParticipantType}", 
-            surveyId, filters.Gender, filters.ParticipantType);
+        _logger.LogInformation("Getting trend data for survey {SurveyId} with filters: Gender={Gender}, ParticipantType={ParticipantType}, Period={Period}", 
+            surveyId, filters.Gender, filters.ParticipantType, filters.Period);
 
         // Get real data from database (mainly 2025 and any other years in DB)
         var realData = await GetRealTrendDataAsync(surveyId, filters);
@@ -31,27 +31,68 @@ public class CustomerSatisfactionTrendService : BaseChartService, ICustomerSatis
         // Combine static historical data with real data
         var result = new CustomerSatisfactionTrendData();
         
-        // Add static historical data for 2023 and 2024
-        result.Years.Add(new YearlyTrendData
+        // If period filter is specified, only include data for that period
+        if (!string.IsNullOrEmpty(filters.Period))
         {
-            Year = 2023,
-            VerySatisfiedPercentage = 13,
-            SatisfiedPercentage = 32,
-            SomewhatSatisfiedPercentage = 38,
-            TotalSatisfiedPercentage = 83
-        });
-        
-        result.Years.Add(new YearlyTrendData
+            // Try to parse the period as a year
+            if (int.TryParse(filters.Period, out int requestedYear))
+            {
+                // Add static historical data only if it matches the requested year
+                if (requestedYear == 2023)
+                {
+                    result.Years.Add(new YearlyTrendData
+                    {
+                        Year = 2023,
+                        VerySatisfiedPercentage = 13,
+                        SatisfiedPercentage = 32,
+                        SomewhatSatisfiedPercentage = 38,
+                        TotalSatisfiedPercentage = 83
+                    });
+                }
+                else if (requestedYear == 2024)
+                {
+                    result.Years.Add(new YearlyTrendData
+                    {
+                        Year = 2024,
+                        VerySatisfiedPercentage = 36,
+                        SatisfiedPercentage = 40,
+                        SomewhatSatisfiedPercentage = 22,
+                        TotalSatisfiedPercentage = 98
+                    });
+                }
+                
+                // Add real data only for the requested year
+                result.Years.AddRange(realData.Where(y => y.Year == requestedYear));
+            }
+            else
+            {
+                // If period is not a year (e.g., "2025-07"), only add real data from database
+                result.Years.AddRange(realData);
+            }
+        }
+        else
         {
-            Year = 2024,
-            VerySatisfiedPercentage = 36,
-            SatisfiedPercentage = 40,
-            SomewhatSatisfiedPercentage = 22,
-            TotalSatisfiedPercentage = 98
-        });
-        
-        // Add real data from database
-        result.Years.AddRange(realData);
+            // No period filter - return all data (original behavior)
+            result.Years.Add(new YearlyTrendData
+            {
+                Year = 2023,
+                VerySatisfiedPercentage = 13,
+                SatisfiedPercentage = 32,
+                SomewhatSatisfiedPercentage = 38,
+                TotalSatisfiedPercentage = 83
+            });
+            
+            result.Years.Add(new YearlyTrendData
+            {
+                Year = 2024,
+                VerySatisfiedPercentage = 36,
+                SatisfiedPercentage = 40,
+                SomewhatSatisfiedPercentage = 22,
+                TotalSatisfiedPercentage = 98
+            });
+            
+            result.Years.AddRange(realData);
+        }
         
         // Sort by year to ensure proper chronological order
         result.Years = result.Years.OrderBy(y => y.Year).ToList();
