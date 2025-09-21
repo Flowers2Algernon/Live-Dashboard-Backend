@@ -61,5 +61,8 @@ Thumbs.db
 *.env
 appsettings.Local.json
 appsettings.*.Local.json
-*/data_files
 
+
+# Data Files
+*/data_files
+qualtrics-data-processor/data
