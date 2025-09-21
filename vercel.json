@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "LERD_Backend/bin/Release/net8.0/publish/LERD_Backend.dll": {
+      "runtime": "dotnet"
+    }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/LERD_Backend/bin/Release/net8.0/publish/LERD_Backend.dll"
+    }
+  ],
+  "env": {
+    "ASPNETCORE_ENVIRONMENT": "Production"
+  }
+}

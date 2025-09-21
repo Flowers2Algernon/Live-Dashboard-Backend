@@ -1,0 +1,59 @@
+@base_url = http://localhost:5153
+
+### Health Check - 检查API状态
+GET {{base_url}}/api/health
+Accept: application/json
+
+### Health Check - 数据库连接测试
+GET {{base_url}}/api/health/database-simple
+Accept: application/json
+
+### Debug - 查看连接配置
+GET {{base_url}}/api/health/debug
+Accept: application/json
+
+###
+### ===== 组织管理 API =====
+###
+
+### 获取所有组织 - Organizations List (支持分页)
+GET {{base_url}}/api/organizations?page=1&pageSize=10
+Accept: application/json
+
+### 获取所有组织 - 快速模式（推荐，避免COUNT查询）
+GET {{base_url}}/api/organizations?page=1&pageSize=5&includeCount=false
+Accept: application/json
+
+### 获取单个组织详情 - Curtin Management and Marketing
+# UUID: 87820689-13ac-48d9-b244-9badc5c35155 代表 "Curtin Management and Marketing"
+GET {{base_url}}/api/organizations/87820689-13ac-48d9-b244-9badc5c35155
+Accept: application/json
+
+### 获取单个组织详情 - Test Organization  
+# UUID: bd6f6592-a52c-4e17-a5c7-f241153a10c8 代表 "Test Organization"
+GET {{base_url}}/api/organizations/bd6f6592-a52c-4e17-a5c7-f241153a10c8
+Accept: application/json
+
+### 创建新组织 - Create Organization
+POST {{base_url}}/api/organizations
+Content-Type: application/json
+
+{
+  "name": "新测试组织",
+  "contactPerson": "张三",
+  "contactPhone": "+61 555666777"
+}
+
+### 更新组织 - Update Curtin Management and Marketing
+# 更新 UUID: 87820689-13ac-48d9-b244-9badc5c35155 的组织信息
+PATCH {{base_url}}/api/organizations/87820689-13ac-48d9-b244-9badc5c35155
+Content-Type: application/json
+
+{
+  "contactPerson": "新的联系人",
+  "contactPhone": "+61 888999000"
+}
+
+### 软删除组织 - Soft Delete Test Organization
+# 删除 UUID: bd6f6592-a52c-4e17-a5c7-f241153a10c8 (设置 isActive = false)
+DELETE {{base_url}}/api/organizations/bd6f6592-a52c-4e17-a5c7-f241153a10c8

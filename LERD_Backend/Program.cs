@@ -1,9 +1,97 @@
 using LERD_Backend.Services;
+using LERD.Application.Interfaces;
+using LERD.Application.Services;
+using LERD.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+using DotNetEnv;
+using LERD.Utils;
+
+// Load environment variables from .env file (only in development)
+if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") != "Production")
+{
+    var envPath = Path.Combine(Directory.GetCurrentDirectory(), "..", ".env");
+    if (File.Exists(envPath))
+    {
+        Env.Load(envPath);
+    }
+    else
+    {
+        // 尝试从当前目录加载
+        var currentDirEnv = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+        if (File.Exists(currentDirEnv))
+        {
+            Env.Load(currentDirEnv);
+        }
+    }
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddAuthorization();
+
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ILoginService, LoginService>();
+builder.Services.AddScoped<JwtHelper>();
+builder.Services.AddScoped<IOrganisationService, OrganisationService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>(); // 新增订阅服务
+builder.Services.AddScoped<IResponseChartService, ResponseChartService>();
+builder.Services.AddScoped<ICustomerSatisfactionService, CustomerSatisfactionService>();
+builder.Services.AddScoped<ICustomerSatisfactionTrendService, CustomerSatisfactionTrendService>();
+builder.Services.AddScoped<INPSService, NPSService>();
+builder.Services.AddScoped<IServiceAttributeService, ServiceAttributeService>();
+
+// 从环境变量或配置构建数据库连接字符串
+// var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+//                       ?? Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING");
+
+// 从环境变量构建数据库连接字符串
+var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL");
+var supabasePassword = Environment.GetEnvironmentVariable("SUPABASE_PASSWORD");
+var dbHost = Environment.GetEnvironmentVariable("SUPABASE_DB_HOST");
+var dbPort = Environment.GetEnvironmentVariable("SUPABASE_DB_PORT");
+
+// 从 Supabase URL 中提取项目引用 ID
+var hostName = supabaseUrl?.Replace("https://", "").Replace("http://", "");
+var projectRef = hostName?.Split('.')[0]; // 获取项目引用 ID
+
+// 使用环境变量中的 Supabase Transaction pooler 连接字符串格式
+var connectionString =
+    $"Host={dbHost};Port={dbPort};Database=postgres;Username=postgres.{projectRef};Password={supabasePassword};SSL Mode=Require";
+
+// 数据库连接
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+// Add CORS policy for frontend integration
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        if (builder.Environment.IsDevelopment())
+        {
+            // 开发环境允许本地域名
+            policy.WithOrigins(
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "https://localhost:3000",
+                "http://127.0.0.1:3000"
+            );
+        }
+        else
+        {
+            // 生产环境从环境变量读取允许的域名
+            var allowedOrigins = Environment.GetEnvironmentVariable("ALLOWED_ORIGINS")?.Split(',')
+                                 ?? new[] { "https://your-frontend-domain.vercel.app" };
+            policy.WithOrigins(allowedOrigins);
+        }
+
+        policy.AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+    });
+});
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -12,6 +100,13 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// 配置端口 - 云部署需要监听所有接口
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+if (!builder.Environment.IsDevelopment())
+{
+    app.Urls.Add($"http://0.0.0.0:{port}");
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -19,8 +114,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Enable CORS
+app.UseCors("AllowFrontend");
 
+app.UseHttpsRedirection();
+app.UseAuthentication(); //jwt identify
 app.UseAuthorization();
 
 app.MapControllers();

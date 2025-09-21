@@ -16,18 +16,18 @@ namespace LERD_Backend.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequest1 request1)
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(new LoginResponse
+                return BadRequest(new LoginResponse1
                 {
                     Success = false,
-                    Message = "invalid request data"
+                    Message = "invalid request1 data"
                 });
             }
 
-            var result = await _loginService.ValidateLoginAsync(request);
+            var result = await _loginService.ValidateLoginAsync(request1);
             
             if (result.Success)
             {

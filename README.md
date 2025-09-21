@@ -1,51 +1,158 @@
-# Lived Experience Research - Dashboard
-## Project Structure
-5 projects are defined - 
+# LERD Backend API
 
-### LERD_Backend
-This is the main entry point for the system. It exposes RESTful API endpoints using ASP.NET Core Web API.
-<br><br>Responsibilities:
-- HTTP request handling
-- Routing and Controllers
-- Authentication and API response formatting
-- Swagger/OpenAPI support
+A .NET Core 8 backend API for Live Employee Retention Dashboard (LERD) with Supabase PostgreSQL integration.
 
-### LERD.Appliction
-This project contains the core business logic interfaces and service implementations. It acts as the intermediary between the controllers (in Backend) and infrastructure (data source).
-<br><br>Responsibilities:
-- Defining service interfaces
-- Implementing application services
-- Coordinating between domain models and data providers
-- Performing data filtering, validation and transformations
+## 🚀 Quick Start
 
-### LERD.Domain
-Defines the core domain models (entities) that represent the business concepts in the system.
-<br><br>Responsibilities:
-- Declaring POCO classes like `SurveyData`, `User`, `Service`
-- Establishing strong typing for data
-- Providing a stable core for use across all other layers
+### Prerequisites
+- .NET 8.0 SDK
+- Supabase account
+- Git
 
-### LERD.Infrastructure
-Contains implementations for external operations such as reading survey data from files, calling Python scripts, or accessing external APIs or storage.
-<br><br>Responsibilities:
-- Implementing data access (e.g., reading JSON files from storage)
-- Executing Python scripts for Qualtrics data extraction
-- Handling filesystem, I/O or network operations
-- Supporting future database access, caching or logging
+### Setup
 
-### LERD.Shared
-Provides shared types, DTOs, constants and helper methods used across all other projects.
-<br><br>Responsibilities:
-- Data Transfer Objects
-- Utility functions (e.g., data conversion, config parsing)
-- Constants and configuration keys
-- Shared enums or error codes
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd livedashboard-stage1-backend
+   ```
 
-## Project References
-Backend: depends on all projects
+2. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your Supabase credentials
+   ```
 
-Application: depends on Domain, Infrastructure, Shared
+3. **Install dependencies**
+   ```bash
+   dotnet restore
+   ```
 
-Infrastructure: depends on Domain, Shared
+4. **Run the application**
+   ```bash
+   cd LERD_Backend
+   dotnet run
+   ```
 
-Domain: depends on Shared
+5. **Test the API**
+   - Open `LERD_Backend/organizations-test.http` in VS Code
+   - Or visit: http://localhost:5153/api/health
+
+## 📁 Project Structure
+
+```
+├── LERD_Backend/           # 🎯 API Layer (Controllers, Startup)
+├── LERD.Application/       # 🔧 Business Logic (Services, Interfaces)
+├── LERD.Domain/           # 📦 Core Entities (Models, Domain Logic)
+├── LERD.Infrastructure/   # 🗄️ Data Access (DbContext, Repositories)
+├── LERD.Shared/          # 🔗 Shared Models (DTOs, Constants)
+├── .env.example          # 📝 Environment Configuration Template
+└── organizations-test.http # 🧪 API Testing File
+```
+
+## 🔌 API Endpoints
+
+### Health Checks
+- `GET /api/health` - Basic health check
+- `GET /api/health/database-simple` - Database connectivity test
+- `GET /api/health/debug` - Connection configuration info
+
+### Organizations Management
+- `GET /api/organizations` - List all organizations (paginated)
+- `GET /api/organizations/{id}` - Get organization by ID
+- `POST /api/organizations` - Create new organization
+- `PATCH /api/organizations/{id}` - Update organization
+- `DELETE /api/organizations/{id}` - Soft delete organization
+
+## 🗃️ Database Configuration
+
+### Recommended: Session Pooler (Write Operations)
+```env
+SUPABASE_DB_HOST=aws-1-ap-southeast-2.pooler.supabase.com
+SUPABASE_DB_PORT=5432
+```
+
+### Alternative: Transaction Pooler (Read Optimized)
+```env
+SUPABASE_DB_HOST=aws-1-ap-southeast-2.pooler.supabase.com
+SUPABASE_DB_PORT=6543
+```
+
+## 📊 API Response Format
+
+```json
+{
+  "success": true,
+  "message": "",
+  "data": {
+    // Response payload
+  }
+}
+```
+
+## 🧪 Testing
+
+Use the provided HTTP test file:
+```bash
+# Open in VS Code with REST Client extension
+code LERD_Backend/organizations-test.http
+```
+
+Or test with curl:
+```bash
+# Health check
+curl http://localhost:5153/api/health
+
+# Get organizations
+curl http://localhost:5153/api/organizations
+```
+
+## 🛡️ Security
+
+- Environment variables for sensitive data
+- UUID-based entity identifiers
+- Soft delete for data preservation
+- Input validation on all endpoints
+
+## 🔄 Development Workflow
+
+1. **Make changes** to the code
+2. **Test locally** using the HTTP test file
+3. **Run health checks** to ensure database connectivity
+4. **Commit and push** changes
+
+## 📈 Performance Features
+
+- **Smart Pagination**: Avoids expensive COUNT queries
+- **Connection Pooling**: Optimized for Supabase
+- **Efficient Queries**: Minimal database round trips
+- **Error Handling**: Comprehensive exception management
+
+## 🤝 Contributing
+
+1. Create a feature branch
+2. Make your changes
+3. Test all endpoints
+4. Submit a pull request
+
+## 📋 Environment Variables
+
+See `.env.example` for required configuration:
+
+- `SUPABASE_URL` - Your Supabase project URL
+- `SUPABASE_ANON_KEY` - Supabase anonymous key
+- `SUPABASE_DB_HOST` - Database host (pooler)
+- `SUPABASE_DB_PORT` - Database port (5432 or 6543)
+- `SUPABASE_PASSWORD` - Database password
+
+## 🏗️ Built With
+
+- **.NET 8.0** - Backend framework
+- **Entity Framework Core** - ORM
+- **Npgsql** - PostgreSQL driver
+- **Supabase** - Backend-as-a-Service
+- **DotNetEnv** - Environment variable management
+
+---
+
+For detailed implementation notes, see [RELEASE_NOTES.md](RELEASE_NOTES.md)
