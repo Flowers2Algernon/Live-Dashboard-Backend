@@ -16,31 +16,55 @@ class DataLoadService:
         try:
             logger.info(f"Loading mappings for survey {survey_id}")
 
-            updated = self._update_survey_mappings_by_qualtrics_id(survey_id, mappings_data)
+            # Get UUID of the survey by Qualtrics survey id
+            survey_uuid = self._get_survey_uuid_by_qualtrics_id(survey_id)
+            if not survey_uuid:
+                return {
+                    "success": False,
+                    "error": f"Survey with qualtrics_survey_id {survey_id} not found in database",
+                    "action": "skipped"
+                }
 
-            if updated:
+            # Check if any existing mappings then skip the insert
+            if not force_update and self._has_existing_mappings(survey_uuid):
+                logger.info(f"Survey {survey_id} already has mappings, skipping update")
                 return {
                     "success": True,
-                    "action": "updated",
+                    "action": "skipped",
+                    "reason": "mappings_already_exist",
+                    "mappings_count": len(mappings_data.get("mappings", {})),
+                    "key_fields_count": len(mappings_data.get("key_fields", {}))
+                }
+
+            success = self._update_survey_mappings(survey_uuid, mappings_data)
+
+            if success:
+                return {
+                    "success": True,
+                    "action": "updated" if force_update else "created",
                     "mappings_count": len(mappings_data.get("mappings", {})),
                     "key_fields_count": len(mappings_data.get("key_fields", {}))
                 }
             else:
-                # 没有匹配到任何行，通常是 surveys 表不存在该 qualtrics_survey_id
                 return {
                     "success": False,
-                    "action": "failed",
-                    "error": f"No surveys row matched qualtrics_survey_id={survey_id}"
+                    "error": "Failed to update mappings in database",
+                    "action": "failed"
                 }
 
         except Exception as e:
             logger.error(f"Failed to load mappings for survey {survey_id}: {e}")
-            return {"success": False, "error": str(e), "action": "failed"}
+            return {
+                "success": False,
+                "error": str(e),
+                "action": "failed"
+            }
 
     def load_survey_responses(self, survey_id, responses_data, replace_existing=True):
         try:
             logger.info(f"Loading responses for survey {survey_id}")
 
+            # Get UUID of the survey by Qualtrics survey id
             survey_uuid = self._get_survey_uuid_by_qualtrics_id(survey_id)
             if not survey_uuid:
                 return {
@@ -67,6 +91,38 @@ class DataLoadService:
                 "success": False,
                 "error": str(e)
             }
+
+    def check_survey_mappings_exist(self, survey_id):
+        try:
+            survey_uuid = self._get_survey_uuid_by_qualtrics_id(survey_id)
+            if not survey_uuid:
+                return False
+
+            return self._has_existing_mappings(survey_uuid)
+
+        except Exception as e:
+            logger.error(f"Failed to check mappings existence for survey {survey_id}: {e}")
+            return False
+
+    def get_survey_mappings(self, survey_id):
+        try:
+            survey_uuid = self._get_survey_uuid_by_qualtrics_id(survey_id)
+            if not survey_uuid:
+                return None
+
+            with db_manager.get_cursor() as cursor:
+                query = "SELECT field_mapping FROM surveys WHERE id = %s"
+                cursor.execute(query, (survey_uuid,))
+                result = cursor.fetchone()
+
+                if result and result['field_mapping']:
+                    return result['field_mapping']
+                else:
+                    return None
+
+        except Exception as e:
+            logger.error(f"Failed to get mappings for survey {survey_id}: {e}")
+            return None
 
     def _get_survey_uuid_by_qualtrics_id(self, qualtrics_survey_id):
         try:
@@ -100,30 +156,39 @@ class DataLoadService:
             logger.error(f"Failed to check existing mappings: {e}")
             raise
 
-    def _update_survey_mappings_by_qualtrics_id(self, qualtrics_survey_id, mappings_data) -> bool:
+    def _update_survey_mappings(self, survey_uuid, mappings_data):
         try:
             with db_manager.get_cursor() as cursor:
-                combined_mapping = {
-                    "field_mappings": mappings_data.get("mappings", {}),
-                    "key_fields": mappings_data.get("key_fields", {}),
-                    "updated_at": datetime.now().isoformat()
-                }
+                field_mappings = mappings_data.get("mappings", {})
+                key_fields = mappings_data.get("key_fields", {})
+
+                service_type = key_fields.get("ServiceType", "")
+
+                field_mapping_data = field_mappings
 
                 update_query = """
-                    UPDATE surveys
-                    SET field_mapping = %s
-                    WHERE qualtrics_survey_id = %s
-                """
-                cursor.execute(update_query, (json.dumps(combined_mapping), qualtrics_survey_id))
+                               UPDATE surveys
+                               SET field_mapping = %s,
+                                   name          = %s,
+                                   service_type  = %s
+                               WHERE id = %s
+                               """
 
-                if cursor.rowcount and cursor.rowcount > 0:
-                    logger.info(f"[{qualtrics_survey_id}] field_mapping updated (rows={cursor.rowcount})")
-                    return True
-                else:
-                    logger.warning(f"[{qualtrics_survey_id}] field_mapping not updated (no rows matched)")
-                    return False
+                cursor.execute(update_query, (
+                    json.dumps(field_mapping_data),
+                    service_type,
+                    service_type,
+                    survey_uuid
+                ))
+
+                logger.info(f"Updated survey mappings, name, and service_type for survey UUID {survey_uuid}")
+                logger.info(f"Service Type set to: {service_type}")
+                logger.info(f"Field mappings count: {len(field_mapping_data)}")
+
+                return True
+
         except Exception as e:
-            logger.error(f"Failed to update survey mappings by qualtrics id {qualtrics_survey_id}: {e}")
+            logger.error(f"Failed to update survey mappings: {e}")
             return False
 
     def _clear_survey_responses(self, survey_uuid):

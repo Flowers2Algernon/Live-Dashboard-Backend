@@ -5,6 +5,7 @@ from typing import Dict, Any
 from ..config.settings import get_config
 from ..utils.file_utils import find_latest_csv
 from ..config.database import db_manager
+from .load_service import DataLoadService
 
 logger = logging.getLogger(__name__)
 
@@ -12,11 +13,68 @@ logger = logging.getLogger(__name__)
 class DataTransformService:
     def __init__(self):
         self.config = get_config()
+        self.load_service = DataLoadService()
 
         self.key_fields = ["Facility", "Satisfaction", "EndDate", "NPS", "NPS_NPS_GROUP", "Gender", "ParticipantType"]
         self.key_fields_prefixes = ["Ab_"]
         self.allowed_keys_dict = ["ServiceType", "Facility", "Satisfaction", "Gender", "ParticipantType"]
         self.allowed_prefixes = ["Ab_"]
+
+    def transform_and_load_all(self, organisation_id=None, force_mappings_update=False):
+        try:
+            survey_ids = self._get_all_survey_ids_from_db(organisation_id)
+
+            if not survey_ids:
+                return {"success": False, "error": "No surveys found in database"}
+
+            return self.transform_specific_surveys(survey_ids, force_mappings_update)
+
+        except Exception as e:
+            logger.error(f"Failed to transform and load all surveys: {e}")
+            return {"success": False, "error": str(e)}
+
+    def transform_specific_surveys(self, survey_ids, force_mappings_update=False):
+        if not survey_ids:
+            return {"success": False, "error": "No survey IDs provided"}
+
+        results = {}
+        logger.info(f"Starting transform and load for {len(survey_ids)} surveys: {', '.join(survey_ids)}")
+
+        for survey_id in survey_ids:
+            try:
+                mappings_result = self._process_survey_mappings(survey_id, force_mappings_update)
+
+                responses_result = self._process_survey_responses(survey_id)
+
+                results[survey_id] = {
+                    "mappings": mappings_result,
+                    "responses": responses_result,
+                    "overall_success": mappings_result.get("success", False) and responses_result.get("success", False)
+                }
+
+            except Exception as e:
+                logger.error(f"[{survey_id}] Transform and load failed: {e}")
+                results[survey_id] = {
+                    "mappings": {"success": False, "error": str(e)},
+                    "responses": {"success": False, "error": "Skipped due to mappings failure"},
+                    "overall_success": False
+                }
+
+        successful = sum(1 for result in results.values() if result["overall_success"])
+        total = len(survey_ids)
+
+        logger.info(f"Transform and load completed: {successful}/{total} successful")
+
+        return {
+            "success": True,
+            "data": {
+                "total_surveys": total,
+                "successful_transforms": successful,
+                "failed_transforms": total - successful,
+                "details": results,
+                "survey_ids": survey_ids
+            }
+        }
 
     def transform_survey_mappings(self, survey_id: str, questions: Dict[str, Any]):
         try:
@@ -86,6 +144,76 @@ class DataTransformService:
             logger.error(f"[{survey_id}] Failed to transform responses: {e}")
             return {"success": False, "error": str(e)}
 
+    def _process_survey_mappings(self, survey_id: str, force_update=False):
+        try:
+            if not force_update and self.load_service.check_survey_mappings_exist(survey_id):
+                logger.info(f"[{survey_id}] Mappings already exist, skipping")
+                return {
+                    "success": True,
+                    "action": "skipped",
+                    "reason": "mappings_already_exist"
+                }
+
+            logger.info(f"[{survey_id}] Need to extract questions for mappings")
+
+            from .extract_service import DataExtractionService
+            extract_service = DataExtractionService()
+
+            questions_result = extract_service.extract_survey_definitions(survey_id)
+
+            if not questions_result.get("success"):
+                return {
+                    "success": False,
+                    "error": f"Failed to extract questions: {questions_result.get('error')}"
+                }
+
+            if questions_result.get("action") == "skipped":
+                return {
+                    "success": True,
+                    "action": "skipped",
+                    "reason": "questions_already_exist"
+                }
+
+            questions = questions_result.get("questions", {})
+
+            transform_result = self.transform_survey_mappings(survey_id, questions)
+
+            if not transform_result.get("success"):
+                return transform_result
+
+            mappings_data = transform_result.get("mappings_data", {})
+            load_result = self.load_service.load_survey_mappings(survey_id, mappings_data, force_update)
+
+            return load_result
+
+        except Exception as e:
+            logger.error(f"[{survey_id}] Failed to process mappings: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _process_survey_responses(self, survey_id: str):
+        try:
+            transform_result = self.transform_survey_responses(survey_id)
+
+            if not transform_result.get("success"):
+                return transform_result
+
+            if transform_result.get("action") == "skipped_duplicate":
+                return transform_result
+
+            responses_data = transform_result.get("responses_data", [])
+            load_result = self.load_service.load_survey_responses(survey_id, responses_data)
+
+            combined_result = {
+                **transform_result,
+                **load_result
+            }
+
+            return combined_result
+
+        except Exception as e:
+            logger.error(f"[{survey_id}] Failed to process responses: {e}")
+            return {"success": False, "error": str(e)}
+
     def _is_latest_duplicate_download(self, survey_id: str) -> dict:
         try:
             with db_manager.get_cursor() as cursor:
@@ -114,12 +242,6 @@ class DataTransformService:
             logger.warning(f"[{survey_id}] Failed to check duplicate download, will proceed with transform. Error: {e}")
             return {"is_duplicate": False}
 
-    def transform_all(self, survey_ids):
-        if not survey_ids:
-            return {"success": False, "error": "No survey IDs provided"}
-
-        return {"success": False, "error": "transform_all requires explicit questions per survey; orchestrate upstream."}
-
     def _extract_mappings_from_questions(self, questions):
         transformed_fields = {
             "key_fields": {},
@@ -139,7 +261,6 @@ class DataTransformService:
             if choices:
                 inner_mapping = {}
                 for key, value in choices.items():
-                    # value 可能是 {"Display": "..."} 结构
                     display = value.get("Display") if isinstance(value, dict) else str(value)
                     inner_mapping[key] = display
 
@@ -160,3 +281,31 @@ class DataTransformService:
 
         data = df_selected.to_dict(orient='records')[2:]
         return data
+
+    def _get_all_survey_ids_from_db(self, organisation_id=None):
+        try:
+            with db_manager.get_cursor() as cursor:
+                if organisation_id:
+                    query = """
+                            SELECT DISTINCT qualtrics_survey_id
+                            FROM surveys
+                            WHERE organisation_id = %s \
+                              and status = 'active'
+                            ORDER BY qualtrics_survey_id
+                            """
+                    cursor.execute(query, (organisation_id,))
+                else:
+                    query = """
+                            SELECT DISTINCT qualtrics_survey_id
+                            FROM surveys
+                            WHERE status = 'active'
+                            ORDER BY qualtrics_survey_id
+                            """
+                    cursor.execute(query)
+
+                results = cursor.fetchall()
+                return [row['qualtrics_survey_id'] for row in results]
+
+        except Exception as e:
+            logger.error(f"Failed to get survey IDs from database: {e}")
+            raise
