@@ -1,7 +1,6 @@
 import json
 import pandas as pd
 import logging
-from datetime import datetime
 
 from ..config.database import db_manager
 
@@ -212,32 +211,40 @@ class DataLoadService:
             with db_manager.get_cursor() as cursor:
                 insert_query = """
                                INSERT INTO survey_responses
-                               (survey_id, qualtrics_response_id, submitted_at, period_year, period_month,
+                               (survey_id, submitted_at, period_year, period_month,
                                 response_data)
-                               VALUES (%s, %s, %s, %s, %s, %s)
+                               VALUES (%s, %s, %s, %s, %s)
                                """
 
                 inserted_count = 0
                 for idx, response in enumerate(responses_data):
                     try:
-                        qualtrics_response_id = response.get('ResponseId', f"generated_{survey_uuid}_{idx}")
-
                         submitted_at = None
+                        period_year = None
+                        period_month = None
+
                         if 'EndDate' in response and response['EndDate']:
                             try:
                                 submitted_at = pd.to_datetime(response['EndDate'])
-                            except:
-                                submitted_at = None
 
-                        period_year = None
-                        period_month = None
-                        if submitted_at:
-                            period_year = submitted_at.year
-                            period_month = submitted_at.replace(day=1).date()
+                                from datetime import timedelta
+                                time_str = str(response['EndDate']).strip()
+                                if ',' in time_str:
+                                    time_str = time_str.split(',')[0]
+
+                                utc_dt = pd.to_datetime(time_str).to_pydatetime()
+                                perth_dt = utc_dt + timedelta(hours=8)
+
+                                period_year = perth_dt.year
+                                period_month = perth_dt.month
+
+                                logger.debug(f"Time conversion - UTC: {time_str} -> Perth: {perth_dt.strftime('%Y-%m-%d %H:%M:%S')} -> Period: {period_year}-{period_month:02d}")
+
+                            except Exception as e:
+                                logger.warning(f"Failed to parse EndDate '{response['EndDate']}': {e}")
 
                         cursor.execute(insert_query, (
                             survey_uuid,
-                            qualtrics_response_id,
                             submitted_at,
                             period_year,
                             period_month,

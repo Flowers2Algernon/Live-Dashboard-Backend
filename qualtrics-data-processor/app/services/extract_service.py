@@ -4,7 +4,7 @@ import pandas as pd
 import logging
 import time
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .qualtrics_api import QualtricsAPI
 from ..config.database import db_manager
@@ -361,7 +361,7 @@ class DataExtractionService:
                     file_name,
                     file_size,
                     file_hash,
-                    datetime.now()
+                    datetime.now(timezone.utc)
                 ))
 
                 log_id = cursor.fetchone()['id']
