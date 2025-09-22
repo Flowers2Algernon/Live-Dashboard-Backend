@@ -1,23 +1,14 @@
 #!/usr/bin/env python3
-"""
-Database Connection Test Script
-用于测试PostgreSQL数据库连接是否正常
-"""
-
 import os
 import sys
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 
-# 加载环境变量
 load_dotenv()
 
 
 def test_database_connection():
-    """测试数据库连接"""
-
-    # 获取数据库配置
     db_config = {
         'host': os.getenv('DB_HOST'),
         'port': int(os.getenv('DB_PORT', 5432)),
@@ -34,7 +25,6 @@ def test_database_connection():
     print(f"Password: {'*' * len(db_config['password']) if db_config['password'] else 'Not set'}")
     print()
 
-    # 检查必需的环境变量
     missing_vars = []
     for key, value in db_config.items():
         if not value:
@@ -45,7 +35,6 @@ def test_database_connection():
         print("Please check your .env file")
         return False
 
-    # 测试基本连接
     print("Testing basic connection...")
     try:
         conn = psycopg2.connect(**db_config)
@@ -58,7 +47,6 @@ def test_database_connection():
         print(f"❌ Unexpected error: {e}")
         return False
 
-    # 测试带编码设置的连接
     print("Testing connection with encoding...")
     try:
         conn = psycopg2.connect(
@@ -69,7 +57,6 @@ def test_database_connection():
         )
         print("✅ Connection with encoding successful")
 
-        # 测试查询
         print("Testing query execution...")
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute("SELECT version() as pg_version, current_database() as db_name")
@@ -85,7 +72,6 @@ def test_database_connection():
         print(f"❌ Connection with encoding failed: {e}")
         return False
 
-    # 测试表是否存在
     print("Checking required tables...")
     try:
         conn = psycopg2.connect(
@@ -118,7 +104,6 @@ def test_database_connection():
 
 
 def test_connection_pool():
-    """测试连接池"""
     print("\n=== Testing Connection Pool ===")
 
     try:
@@ -142,22 +127,18 @@ def test_connection_pool():
 
         print("✅ Connection pool created successfully")
 
-        # 测试从池中获取连接
         conn1 = pool.getconn()
         print("✅ Got connection from pool")
 
-        # 测试查询
         cursor = conn1.cursor()
         cursor.execute("SELECT 1 as test")
         result = cursor.fetchone()
         assert result['test'] == 1
         print("✅ Query through pool successful")
 
-        # 归还连接
         pool.putconn(conn1)
         print("✅ Returned connection to pool")
 
-        # 关闭池
         pool.closeall()
         print("✅ Connection pool closed")
 
@@ -171,10 +152,8 @@ def test_connection_pool():
 if __name__ == "__main__":
     print("Starting database connection tests...\n")
 
-    # 基本连接测试
     basic_test = test_database_connection()
 
-    # 连接池测试
     pool_test = test_connection_pool()
 
     print(f"\n=== Test Results ===")
