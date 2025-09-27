@@ -27,7 +27,7 @@ public class PeriodFilter
     
     /// <summary>
     /// Parse the period string into structured filter data
-    /// Supports backward compatibility with existing formats
+    /// Supports backward compatibility with existing formats + new date range format
     /// </summary>
     /// <returns>True if parsing was successful or no period specified</returns>
     public bool Parse()
@@ -48,7 +48,35 @@ public class PeriodFilter
                 return true;
             }
             
-            // Format 2: Month list "2025-07,2025-08" or single month "2025-07"
+            // Format 2: Date range "2024-05:2025-08" (NEW - supports cross-year ranges)
+            if (Period.Contains(':'))
+            {
+                var rangeParts = Period.Split(':', StringSplitOptions.RemoveEmptyEntries);
+                if (rangeParts.Length == 2)
+                {
+                    var startPart = rangeParts[0].Trim();
+                    var endPart = rangeParts[1].Trim();
+                    
+                    // Try to parse start and end as YYYY-MM format
+                    if (DateTime.TryParseExact(startPart + "-01", "yyyy-MM-dd", 
+                        CultureInfo.InvariantCulture, DateTimeStyles.None, out var startDate) &&
+                        DateTime.TryParseExact(endPart + "-01", "yyyy-MM-dd", 
+                        CultureInfo.InvariantCulture, DateTimeStyles.None, out var endDate))
+                    {
+                        // Validate that start is before or equal to end
+                        if (startDate <= endDate)
+                        {
+                            StartDate = new DateTime(startDate.Year, startDate.Month, 1);
+                            EndDate = new DateTime(endDate.Year, endDate.Month, DateTime.DaysInMonth(endDate.Year, endDate.Month));
+                            Type = PeriodFilterType.DateRange;
+                            return true;
+                        }
+                    }
+                }
+                return false; // Invalid range format
+            }
+            
+            // Format 3: Month list "2025-07,2025-08" or single month "2025-07" (same year only)
             var monthParts = Period.Split(',', StringSplitOptions.RemoveEmptyEntries);
             var months = new List<int>();
             int? commonYear = null;
@@ -64,7 +92,7 @@ public class PeriodFilter
                     if (commonYear == null) 
                         commonYear = date.Year;
                     else if (date.Year != commonYear)
-                        return false; // Don't allow cross-year selection
+                        return false; // Don't allow cross-year selection in comma format
                     
                     if (!months.Contains(date.Month))
                         months.Add(date.Month);
@@ -104,6 +132,7 @@ public class PeriodFilter
     
     /// <summary>
     /// Build SQL WHERE clause for period filtering based on EndDate field in JSON
+    /// Enhanced to support date range filtering across years
     /// </summary>
     /// <returns>SQL condition string</returns>
     public string BuildWhereClause()
@@ -121,6 +150,9 @@ public class PeriodFilter
                 
             PeriodFilterType.Months when Months.Count > 1 =>
                 $"({string.Join(" OR ", Months.Select(m => $"sr.response_data->>'EndDate' LIKE '{Year:D4}-{m:D2}-%'"))})",
+                
+            PeriodFilterType.DateRange =>
+                $"(sr.response_data->>'EndDate' >= '{StartDate:yyyy-MM-dd}' AND sr.response_data->>'EndDate' <= '{EndDate:yyyy-MM-dd}')",
                 
             _ => "1=1"
         };
@@ -141,6 +173,8 @@ public class PeriodFilter
                 $"{new DateTime(Year!.Value, Months[0], 1):MMMM yyyy}",
             PeriodFilterType.Months when Months.Count > 1 =>
                 $"Months: {string.Join(", ", Months.Select(m => new DateTime(Year!.Value, m, 1).ToString("MMM")))} {Year}",
+            PeriodFilterType.DateRange =>
+                $"Range: {StartDate:MMM yyyy} to {EndDate:MMM yyyy}",
             _ => "All periods"
         };
     }

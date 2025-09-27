@@ -1,4 +1,4 @@
-// LERD_Backend/Controllers/PeriodFilterTestController.cs
+// LERD_Backend/Controllers/DateRangeTestController.cs
 using LERD.Domain.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -6,10 +6,10 @@ namespace LERD_Backend.Controllers;
 
 [ApiController]
 [Route("api/test")]
-public class PeriodFilterTestController : ControllerBase
+public class DateRangeTestController : ControllerBase
 {
-    [HttpGet("period-filter")]
-    public IActionResult TestPeriodFilter([FromQuery] string? period = null)
+    [HttpGet("date-range-filter")]
+    public IActionResult TestDateRangeFilter([FromQuery] string? period = null)
     {
         var periodFilter = new PeriodFilter { Period = period };
         var parseResult = periodFilter.Parse();
@@ -27,15 +27,17 @@ public class PeriodFilterTestController : ControllerBase
             SqlWhereClause = periodFilter.BuildWhereClause(),
             TestCases = new
             {
-                Message = "Test these URLs:",
+                Message = "Test these date range formats:",
                 Examples = new[]
                 {
-                    "/api/test/period-filter?period=2025",
-                    "/api/test/period-filter?period=2025-07",
-                    "/api/test/period-filter?period=2025-07,2025-08",
-                    "/api/test/period-filter?period=2025-01,2025-12",
-                    "/api/test/period-filter",
-                    "/api/test/period-filter?period=invalid"
+                    "/api/test/date-range-filter?period=2024-05:2025-08",
+                    "/api/test/date-range-filter?period=2025-01:2025-12", 
+                    "/api/test/date-range-filter?period=2024-12:2025-01",
+                    "/api/test/date-range-filter?period=2025-07",
+                    "/api/test/date-range-filter?period=2025-07,2025-08",
+                    "/api/test/date-range-filter?period=2025",
+                    "/api/test/date-range-filter",
+                    "/api/test/date-range-filter?period=invalid:format"
                 }
             }
         });
