@@ -100,5 +100,91 @@ namespace LERD_Backend.Controllers
                 });
             }
         }
+
+        [HttpGet("test-chart-sql")]
+        public async Task<IActionResult> TestChartSql()
+        {
+            try
+            {
+                var surveyId = Guid.Parse("8dff523d-2a46-4ee3-8017-614af3813b32");
+                var connectionString = _context.Database.GetConnectionString();
+
+                using var connection = new Npgsql.NpgsqlConnection(connectionString);
+                await connection.OpenAsync();
+
+                // 测试与CustomerSatisfactionService相同的SQL查询
+                var sql = @"
+                    WITH response_records AS (
+                        SELECT 
+                            response_element->>'Facility' as facility_code,
+                            response_element->>'Gender' as gender,
+                            response_element->>'ParticipantType' as participant_type,
+                            response_element->>'EndDate' as end_date,
+                            response_element->>'Satisfaction' as satisfaction_code
+                        FROM survey_responses sr,
+                             jsonb_array_elements(sr.response_data) as response_element
+                        WHERE sr.survey_id = @surveyId
+                          AND response_element->>'Satisfaction' IS NOT NULL
+                          AND response_element->>'NPS_NPS_GROUP' IS NOT NULL
+                          AND (@gender IS NULL OR response_element->>'Gender' = @gender)
+                          AND (@participantType IS NULL OR response_element->>'ParticipantType' = @participantType)
+                          AND (@period IS NULL OR response_element->>'EndDate' LIKE @period)
+                    ),
+                    total_count AS (
+                      SELECT COUNT(*) as total FROM response_records
+                    )
+                    SELECT 
+                      COALESCE(
+                        ROUND(
+                          COUNT(CASE WHEN satisfaction_code = '6' THEN 1 END) * 100.0 / NULLIF(tc.total, 0), 1
+                        ), 0
+                      ) as very_satisfied_percentage,
+                      
+                      tc.total as total_responses
+
+                    FROM response_records, total_count tc
+                    GROUP BY tc.total;";
+
+                using var command = new Npgsql.NpgsqlCommand(sql, connection);
+                command.Parameters.AddWithValue("surveyId", surveyId);
+                command.Parameters.AddWithValue("gender", DBNull.Value);
+                command.Parameters.AddWithValue("participantType", DBNull.Value);
+                command.Parameters.AddWithValue("period", DBNull.Value);
+
+                using var reader = await command.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    var verySatisfied = reader.GetDecimal(0);
+                    var totalResponses = reader.GetInt32(1);
+                    
+                    return Ok(new 
+                    { 
+                        success = true, 
+                        verySatisfiedPercentage = verySatisfied,
+                        totalResponses = totalResponses,
+                        message = "Chart SQL query successful"
+                    });
+                }
+                else
+                {
+                    return Ok(new 
+                    { 
+                        success = false, 
+                        message = "No data returned from chart query"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Chart SQL test failed");
+                return Ok(new 
+                { 
+                    success = false, 
+                    message = "Chart SQL test failed", 
+                    error = ex.Message,
+                    innerError = ex.InnerException?.Message
+                });
+            }
+        }
     }
 }
