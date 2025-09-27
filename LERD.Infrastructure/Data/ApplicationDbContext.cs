@@ -12,6 +12,7 @@ namespace LERD.Infrastructure.Data
         public DbSet<Organisation> Organisations { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<User> User { get; set; }
+        public DbSet<Survey> Surveys { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -57,6 +58,51 @@ namespace LERD.Infrastructure.Data
                 
                 // 不需要添加check constraints，因为数据库已经有了
                 // 不需要添加索引，因为实际数据库可能已经有了
+            });
+
+            // Survey entity configuration
+            modelBuilder.Entity<Survey>(entity =>
+            {
+                entity.ToTable("surveys");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.OrganisationId).HasColumnName("organisation_id").IsRequired();
+                entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+                entity.Property(e => e.ServiceType).HasColumnName("service_type");
+                entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.Settings).HasColumnName("settings").HasColumnType("jsonb");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+                // Foreign key relationship
+                entity.HasOne(e => e.Organisation)
+                    .WithMany()
+                    .HasForeignKey(e => e.OrganisationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // User entity configuration
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.ToTable("users");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.OrganisationId).HasColumnName("organisation_id").IsRequired();
+                entity.Property(e => e.Username).HasColumnName("username").IsRequired();
+                entity.Property(e => e.PasswordHash).HasColumnName("password_hash").IsRequired();
+                entity.Property(e => e.FullName).HasColumnName("full_name").IsRequired();
+                entity.Property(e => e.IsActive).HasColumnName("is_active");
+                entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+                entity.Property(e => e.Preferences).HasColumnName("preferences").HasColumnType("jsonb");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+                // Foreign key relationship
+                entity.HasOne<Organisation>()
+                    .WithMany()
+                    .HasForeignKey(e => e.OrganisationId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             base.OnModelCreating(modelBuilder);

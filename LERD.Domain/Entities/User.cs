@@ -40,5 +40,8 @@ namespace LERD.Domain.Entities
 
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; }
+
+        // Navigation property
+        public Organisation? Organisation { get; set; }
     }
 }

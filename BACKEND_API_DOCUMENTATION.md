@@ -5,7 +5,60 @@
 https://live-dashboard-backend-production.up.railway.app/api
 ```
 ##### participantType means client type
-## 📊 Available APIs
+
+## � Authentication API
+
+### Login
+User authentication endpoint.
+
+**Endpoint:** `POST /login`
+
+**Request Body:**
+```json
+{
+  "username": "admin",
+  "password": "admin123"
+}
+```
+
+**Available Users:**
+- `admin` / `admin123`
+- `user` / `user123`
+- `teacher` / `teacher123`
+- `student` / `student123`
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "login successful",
+  "username": "admin"
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "message": "user name or password is incorrect"
+}
+```
+
+**Example:**
+```javascript
+fetch('https://live-dashboard-backend-production.up.railway.app/api/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    username: 'admin',
+    password: 'admin123'
+  })
+})
+```
+
+## 📊 Chart APIs
 
 ### 1. Response Chart
 Get survey response statistics and participant distribution.
@@ -48,11 +101,17 @@ Get customer satisfaction trend over time.
 - `surveyId` (required): `8dff523d-2a46-4ee3-8017-614af3813b32`
 - `gender` (optional): `1` (Male) or `2` (Female)
 - `participantType` (optional): `1`, `2`, `3`, etc.
-- `period` (optional): time period filter
+- `period` (optional): time period filter (e.g., `2025`, `2024`, `2023`)
+  - If specified as a year, returns only data for that year
+  - If not specified, returns trend data for all available years
 
 **Example:**
 ```javascript
-fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&participantType=1')
+// Get trend data for a specific year
+fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025')
+
+// Get trend data for all years
+fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction-trend?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32')
 ```
 
 ### 4. NPS (Net Promoter Score)
@@ -88,7 +147,83 @@ Get service attribute ratings.
 fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32')
 ```
 
-## 📝 Response Format
+## � User Survey APIs
+
+### 1. Get User Surveys
+Get all surveys accessible to a specific user based on their organization.
+
+**Endpoint:** `GET /users/{userId}/surveys`
+
+**Parameters:**
+- `userId` (required): GUID of the user
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Found 2 surveys",
+  "data": {
+    "surveys": [
+      {
+        "surveyId": "8dff523d-2a46-4ee3-8017-614af3813b32",
+        "surveyName": "Customer Satisfaction Survey 2025",
+        "serviceType": "Public Service",
+        "status": "active",
+        "isDefault": true
+      },
+      {
+        "surveyId": "7cee412c-1935-3dd2-9016-503ae2702c21",
+        "surveyName": "Staff Feedback Survey",
+        "serviceType": "Internal",
+        "status": "active", 
+        "isDefault": false
+      }
+    ],
+    "defaultSurvey": {
+      "surveyId": "8dff523d-2a46-4ee3-8017-614af3813b32",
+      "surveyName": "Customer Satisfaction Survey 2025",
+      "serviceType": "Public Service",
+      "status": "active",
+      "isDefault": true
+    }
+  }
+}
+```
+
+**Example:**
+```javascript
+fetch('https://live-dashboard-backend-production.up.railway.app/api/users/123e4567-e89b-12d3-a456-426614174001/surveys')
+```
+
+### 2. Get User Default Survey
+Get the default survey for a specific user (useful for dashboard initialization).
+
+**Endpoint:** `GET /users/{userId}/surveys/default`
+
+**Parameters:**
+- `userId` (required): GUID of the user
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Default survey retrieved successfully",
+  "data": {
+    "surveyId": "8dff523d-2a46-4ee3-8017-614af3813b32",
+    "surveyName": "Customer Satisfaction Survey 2025",
+    "serviceType": "Public Service",
+    "status": "active",
+    "isDefault": true
+  }
+}
+```
+
+**Example:**
+```javascript
+fetch('https://live-dashboard-backend-production.up.railway.app/api/users/123e4567-e89b-12d3-a456-426614174001/surveys/default')
+```
+
+## �📝 Response Format
 
 All APIs return data in this format:
 
@@ -100,4 +235,47 @@ All APIs return data in this format:
     // API-specific data structure
   }
 }
+```
+
+## ❗ Error Handling
+
+If there's an error, the API returns:
+
+```json
+{
+  "success": false,
+  "message": "Error description",
+  "data": null
+}
+```
+
+Common HTTP status codes:
+- `200`: Success
+- `400`: Bad request (missing or invalid parameters)
+- `401`: Unauthorized (for login API)
+- `500`: Server error
+
+## 🔧 Quick Test
+
+You can test the APIs directly in your browser or using curl:
+
+```bash
+# Test Login API
+curl -X POST "https://live-dashboard-backend-production.up.railway.app/api/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+
+# Test Response Chart API
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+
+# Test Customer Satisfaction API
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+
+# Test NPS API with gender filter
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1"
+```
+
+## 📞 Contact
+
+If you encounter any issues or need additional endpoints, please contact the backend team.
 
