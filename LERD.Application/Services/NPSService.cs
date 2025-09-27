@@ -27,11 +27,10 @@ public class NPSService : BaseChartService, INPSService
         var sql = $@"
             WITH nps_data AS (
               SELECT 
-                response_element->>'NPS_NPS_GROUP' as nps_group
-              FROM survey_responses sr,
-                   jsonb_array_elements(sr.response_data) as response_element
+                sr.response_data->>'NPS_NPS_GROUP' as nps_group
+              FROM survey_responses sr
               WHERE sr.survey_id = @surveyId
-                AND response_element->>'NPS_NPS_GROUP' IS NOT NULL
+                AND sr.response_data->>'NPS_NPS_GROUP' IS NOT NULL
                 AND {filterConditions}
             ),
             distribution AS (

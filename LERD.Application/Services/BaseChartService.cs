@@ -16,20 +16,20 @@ public abstract class BaseChartService
     {
         var conditions = new List<string>
         {
-            "response_element->>'Satisfaction' IS NOT NULL",
-            "response_element->>'NPS_NPS_GROUP' IS NOT NULL"
+            "sr.response_data->>'Satisfaction' IS NOT NULL",
+            "sr.response_data->>'NPS_NPS_GROUP' IS NOT NULL"
         };
 
         if (!string.IsNullOrEmpty(filters.Gender))
-            conditions.Add("(@gender IS NULL OR response_element->>'Gender' = @gender)");
+            conditions.Add("(@gender IS NULL OR sr.response_data->>'Gender' = @gender)");
 
         if (!string.IsNullOrEmpty(filters.ParticipantType))
-            conditions.Add("(@participantType IS NULL OR response_element->>'ParticipantType' = @participantType)");
+            conditions.Add("(@participantType IS NULL OR sr.response_data->>'ParticipantType' = @participantType)");
 
         if (!string.IsNullOrEmpty(filters.Period))
         {
             // Support period formats like "2025-07" or "2025"
-            conditions.Add("(@period IS NULL OR response_element->>'EndDate' LIKE @period)");
+            conditions.Add("(@period IS NULL OR sr.response_data->>'EndDate' LIKE @period)");
         }
 
         return string.Join(" AND ", conditions);
@@ -46,10 +46,10 @@ public abstract class BaseChartService
         var filterConditions = BuildFilterConditions(filters);
         
         var baseFields = @"
-                    response_element->>'Facility' as facility_code,
-                    response_element->>'Gender' as gender,
-                    response_element->>'ParticipantType' as participant_type,
-                    response_element->>'EndDate' as end_date";
+                    sr.response_data->>'Facility' as facility_code,
+                    sr.response_data->>'Gender' as gender,
+                    sr.response_data->>'ParticipantType' as participant_type,
+                    sr.response_data->>'EndDate' as end_date";
 
         var allFields = string.IsNullOrEmpty(additionalFields) 
             ? baseFields 
@@ -58,8 +58,7 @@ public abstract class BaseChartService
         return $@"
             WITH response_records AS (
                 SELECT {allFields}
-                FROM survey_responses sr,
-                     jsonb_array_elements(sr.response_data) as response_element
+                FROM survey_responses sr
                 WHERE sr.survey_id = @surveyId
                   AND {filterConditions}
             )";

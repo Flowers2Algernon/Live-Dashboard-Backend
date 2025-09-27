@@ -23,7 +23,7 @@ public class CustomerSatisfactionService : BaseChartService, ICustomerSatisfacti
     public async Task<CustomerSatisfactionData> GetSatisfactionDataAsync(Guid surveyId, ChartFilters filters)
     {
         var baseCTE = BuildBaseResponseCTE(filters, @"
-                    response_element->>'Satisfaction' as satisfaction_code");
+                    sr.response_data->>'Satisfaction' as satisfaction_code");
         
         var sql = $@"
             {baseCTE},

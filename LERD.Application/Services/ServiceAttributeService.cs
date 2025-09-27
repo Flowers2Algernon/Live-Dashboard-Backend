@@ -69,9 +69,8 @@ public class ServiceAttributeService : BaseChartService, IServiceAttributeServic
         var sql = @"
             WITH response_keys AS (
               SELECT DISTINCT 
-                jsonb_object_keys(response_element) as key_name
-              FROM survey_responses sr,
-                   jsonb_array_elements(sr.response_data) as response_element
+                jsonb_object_keys(sr.response_data) as key_name
+              FROM survey_responses sr
               WHERE sr.survey_id = @surveyId
             )
             SELECT REPLACE(key_name, 'Ab_', '') as attribute_name
@@ -112,11 +111,10 @@ public class ServiceAttributeService : BaseChartService, IServiceAttributeServic
         var sql = $@"
             WITH attribute_data AS (
               SELECT 
-                response_element
-              FROM survey_responses sr,
-                   jsonb_array_elements(sr.response_data) as response_element
+                sr.response_data as response_element
+              FROM survey_responses sr
               WHERE sr.survey_id = @surveyId
-                AND response_element->>'Satisfaction' IS NOT NULL
+                AND sr.response_data->>'Satisfaction' IS NOT NULL
                 AND {filterConditions}
             ),
             target_attributes AS (

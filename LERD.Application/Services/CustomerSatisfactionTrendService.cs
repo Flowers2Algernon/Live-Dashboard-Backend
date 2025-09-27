@@ -109,12 +109,11 @@ public class CustomerSatisfactionTrendService : BaseChartService, ICustomerSatis
         var sql = $@"
             WITH yearly_satisfaction AS (
               SELECT 
-                EXTRACT(YEAR FROM (response_element->>'EndDate')::timestamp) as year,
-                response_element->>'Satisfaction' as satisfaction_code
-              FROM survey_responses sr,
-                   jsonb_array_elements(sr.response_data) as response_element
+                EXTRACT(YEAR FROM (sr.response_data->>'EndDate')::timestamp) as year,
+                sr.response_data->>'Satisfaction' as satisfaction_code
+              FROM survey_responses sr
               WHERE sr.survey_id = @surveyId
-                AND response_element->>'EndDate' IS NOT NULL
+                AND sr.response_data->>'EndDate' IS NOT NULL
                 AND {filterConditions}
             ),
             year_totals AS (
