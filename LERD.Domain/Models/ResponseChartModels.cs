@@ -11,7 +11,7 @@ public class ResponseChartData
 
 public class RegionData
 {
-    public string VillageName { get; set; }
+    public string VillageName { get; set; } = string.Empty;
     public int ParticipantCount { get; set; }
 }
 
@@ -20,4 +20,9 @@ public class ChartFilters
     public string? Gender { get; set; }
     public string? ParticipantType { get; set; }
     public string? Period { get; set; }
+    
+    /// <summary>
+    /// Advanced period filter with support for multiple time formats
+    /// </summary>
+    public PeriodFilter PeriodFilter => new PeriodFilter { Period = Period };
 }

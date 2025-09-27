@@ -198,9 +198,17 @@ Get all surveys accessible to a specific user based on their organization.
 }
 ```
 
+**Available Test Users:**
+- **sithu**: `e8268d06-61f4-40bc-a03f-29416f1a8aaa`
+- **wayne**: `1df07f08-f487-4a36-8522-cf17bc69d50b`
+
 **Example:**
 ```javascript
-fetch('https://live-dashboard-backend-production.up.railway.app/api/users/123e4567-e89b-12d3-a456-426614174001/surveys')
+// Test with user sithu
+fetch('https://live-dashboard-backend-production.up.railway.app/api/users/e8268d06-61f4-40bc-a03f-29416f1a8aaa/surveys') - no connection in database will return 0
+
+// Test with user wayne
+fetch('https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/surveys')
 ```
 
 ### 2. Get User Default Survey
@@ -228,7 +236,11 @@ Get the default survey for a specific user (useful for dashboard initialization)
 
 **Example:**
 ```javascript
-fetch('https://live-dashboard-backend-production.up.railway.app/api/users/123e4567-e89b-12d3-a456-426614174001/surveys/default')
+// Test with user sithu
+fetch('https://live-dashboard-backend-production.up.railway.app/api/users/e8268d06-61f4-40bc-a03f-29416f1a8aaa/surveys/default')
+
+// Test with user wayne
+fetch('https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/surveys/default')
 ```
 
 ## �📝 Response Format

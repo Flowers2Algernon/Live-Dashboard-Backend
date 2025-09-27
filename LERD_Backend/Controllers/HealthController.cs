@@ -15,33 +15,7 @@ namespace LERD_Backend.Controllers
             _context = context;
         }
 
-        [HttpGet("debug")]
-        public IActionResult Debug()
-        {
-            var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL");
-            var supabasePassword = Environment.GetEnvironmentVariable("SUPABASE_PASSWORD");
-            var dbHost = Environment.GetEnvironmentVariable("SUPABASE_DB_HOST");
-            var dbPort = Environment.GetEnvironmentVariable("SUPABASE_DB_PORT");
-            
-            // 从 Supabase URL 中提取项目引用 ID
-            var hostName = supabaseUrl?.Replace("https://", "").Replace("http://", "");
-            var projectRef = hostName?.Split('.')[0]; // 获取项目引用 ID
-            
-            // 使用与Program.cs相同的连接字符串构建逻辑
-            var connectionString = $"Host={dbHost};Port={dbPort};Database=postgres;Username=postgres.{projectRef};Password={supabasePassword?.Substring(0, 4)}***;SSL Mode=Require";
 
-            return Ok(new
-            {
-                SupabaseUrl = supabaseUrl,
-                PasswordSet = !string.IsNullOrEmpty(supabasePassword),
-                PasswordLength = supabasePassword?.Length ?? 0,
-                DbHost = dbHost,
-                DbPort = dbPort,
-                ProjectRef = projectRef,
-                ConnectionString = connectionString,
-                Timestamp = DateTime.Now
-            });
-        }
 
         [HttpGet("database-simple")]
         public async Task<IActionResult> CheckSimpleDatabaseQuery()

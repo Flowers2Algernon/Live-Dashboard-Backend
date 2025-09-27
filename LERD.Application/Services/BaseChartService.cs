@@ -8,7 +8,7 @@ namespace LERD.Application.Services;
 public abstract class BaseChartService
 {
     /// <summary>
-    /// Builds common filter conditions for survey response data
+    /// Builds common filter conditions for survey response data with advanced period filtering
     /// </summary>
     /// <param name="filters">Chart filters to apply</param>
     /// <returns>SQL WHERE conditions string</returns>
@@ -21,15 +21,17 @@ public abstract class BaseChartService
         };
 
         if (!string.IsNullOrEmpty(filters.Gender))
-            conditions.Add("(@gender IS NULL OR sr.response_data->>'Gender' = @gender)");
+            conditions.Add("sr.response_data->>'Gender' = @gender");
 
         if (!string.IsNullOrEmpty(filters.ParticipantType))
-            conditions.Add("(@participantType IS NULL OR sr.response_data->>'ParticipantType' = @participantType)");
+            conditions.Add("sr.response_data->>'ParticipantType' = @participantType");
 
-        if (!string.IsNullOrEmpty(filters.Period))
+        // Advanced period filtering with multiple format support
+        var periodFilter = filters.PeriodFilter;
+        var periodCondition = periodFilter.BuildWhereClause();
+        if (periodCondition != "1=1") // Only add if there's actual filtering
         {
-            // Support period formats like "2025-07" or "2025"
-            conditions.Add("(@period IS NULL OR sr.response_data->>'EndDate' LIKE @period)");
+            conditions.Add(periodCondition);
         }
 
         return string.Join(" AND ", conditions);
@@ -66,26 +68,28 @@ public abstract class BaseChartService
 
     /// <summary>
     /// Adds standard filter parameters to a Npgsql command
+    /// Enhanced to support advanced period filtering while maintaining backward compatibility
     /// </summary>
     /// <param name="command">The command to add parameters to</param>
     /// <param name="filters">The filters containing parameter values</param>
     protected void AddFilterParameters(NpgsqlCommand command, ChartFilters filters)
     {
-        command.Parameters.Add(new NpgsqlParameter("gender", NpgsqlDbType.Text) 
-            { Value = (object?)filters.Gender ?? DBNull.Value });
-        command.Parameters.Add(new NpgsqlParameter("participantType", NpgsqlDbType.Text) 
-            { Value = (object?)filters.ParticipantType ?? DBNull.Value });
+        // Add gender parameter only if specified
+        if (!string.IsNullOrEmpty(filters.Gender))
+        {
+            command.Parameters.Add(new NpgsqlParameter("gender", NpgsqlDbType.Text) 
+                { Value = filters.Gender });
+        }
         
-        if (!string.IsNullOrEmpty(filters.Period))
+        // Add participant type parameter only if specified
+        if (!string.IsNullOrEmpty(filters.ParticipantType))
         {
-            command.Parameters.Add(new NpgsqlParameter("period", NpgsqlDbType.Text) 
-                { Value = $"{filters.Period}%" });
+            command.Parameters.Add(new NpgsqlParameter("participantType", NpgsqlDbType.Text) 
+                { Value = filters.ParticipantType });
         }
-        else
-        {
-            command.Parameters.Add(new NpgsqlParameter("period", NpgsqlDbType.Text) 
-                { Value = DBNull.Value });
-        }
+        
+        // Note: Period filtering is now handled directly in BuildFilterConditions()
+        // using PeriodFilter.BuildWhereClause() for more advanced filtering logic
     }
 
     /// <summary>
