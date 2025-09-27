@@ -6,7 +6,15 @@ https://live-dashboard-backend-production.up.railway.app/api
 ```
 ##### participantType means client type
 
-## � Authentication API
+## 📊 Available Survey IDs for Testing
+
+Current surveys available in the production database:
+- **Survey ID**: `8dff523d-2a46-4ee3-8017-614af3813b32` (Retirement Village survey)
+- **Survey ID**: `1e2f84b2-bba2-4226-a1de-c511e8402068` (Residential Care - Nursing Home survey)
+
+Use either of these survey IDs when testing chart endpoints and user survey endpoints.
+
+## 🔐 Authentication API
 
 ### Login
 User authentication endpoint.
@@ -265,14 +273,23 @@ curl -X POST "https://live-dashboard-backend-production.up.railway.app/api/login
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}'
 
-# Test Response Chart API
+# Test Response Chart API (Retirement Village)
 curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
 
-# Test Customer Satisfaction API
+# Test Response Chart API (Residential Care)
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=1e2f84b2-bba2-4226-a1de-c511e8402068"
+
+# Test Customer Satisfaction API (Retirement Village)
 curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
 
-# Test NPS API with gender filter
+# Test Customer Satisfaction API (Residential Care)
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=1e2f84b2-bba2-4226-a1de-c511e8402068"
+
+# Test NPS API with gender filter (Retirement Village)
 curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=1"
+
+# Test NPS API (Residential Care)
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=1e2f84b2-bba2-4226-a1de-c511e8402068"
 ```
 
 ## 📞 Contact
