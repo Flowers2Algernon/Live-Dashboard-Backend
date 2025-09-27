@@ -14,27 +14,24 @@ namespace LERD.Domain.Entities
         [Column("organisation_id")]
         public Guid OrganisationId { get; set; }
 
-        [Required]
+        [Column("qualtrics_survey_id")]
+        public string? QualtricsId { get; set; }
+
         [Column("name")]
-        public string Name { get; set; } = string.Empty;
+        public string? Name { get; set; }
 
         [Column("service_type")]
         public string? ServiceType { get; set; }
 
-        [Required]
         [Column("status")]
         public string Status { get; set; } = "active";
 
         [Column("description")]
         public string? Description { get; set; }
 
-        [Column("settings", TypeName = "jsonb")]
+        // 这些字段在实体中保留，但在EF配置中忽略，因为数据库表结构不同
         public string Settings { get; set; } = "{}";
-
-        [Column("created_at")]
         public DateTime CreatedAt { get; set; }
-
-        [Column("updated_at")]
         public DateTime UpdatedAt { get; set; }
 
         // Navigation property

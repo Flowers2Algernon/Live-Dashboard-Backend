@@ -11,7 +11,7 @@ namespace LERD.Infrastructure.Data
 
         public DbSet<Organisation> Organisations { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
-        public DbSet<User> User { get; set; }
+        public DbSet<User> Users { get; set; }
         public DbSet<Survey> Surveys { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -60,20 +60,21 @@ namespace LERD.Infrastructure.Data
                 // 不需要添加索引，因为实际数据库可能已经有了
             });
 
-            // Survey entity configuration
+            // Survey entity configuration - 基于实际数据库表结构
             modelBuilder.Entity<Survey>(entity =>
             {
                 entity.ToTable("surveys");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.OrganisationId).HasColumnName("organisation_id").IsRequired();
-                entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+                entity.Property(e => e.Name).HasColumnName("name");
                 entity.Property(e => e.ServiceType).HasColumnName("service_type");
-                entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+                entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("active");
                 entity.Property(e => e.Description).HasColumnName("description");
-                entity.Property(e => e.Settings).HasColumnName("settings").HasColumnType("jsonb");
-                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                // 注意：数据库中没有settings字段，而是有field_mapping和chart_configuration
+                entity.Ignore(e => e.Settings);
+                entity.Ignore(e => e.CreatedAt);
+                entity.Ignore(e => e.UpdatedAt);
 
                 // Foreign key relationship
                 entity.HasOne(e => e.Organisation)
@@ -82,7 +83,7 @@ namespace LERD.Infrastructure.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // User entity configuration
+            // User entity configuration - 基于实际数据库表结构
             modelBuilder.Entity<User>(entity =>
             {
                 entity.ToTable("users");
@@ -99,7 +100,7 @@ namespace LERD.Infrastructure.Data
                 entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
 
                 // Foreign key relationship
-                entity.HasOne<Organisation>()
+                entity.HasOne(e => e.Organisation)
                     .WithMany()
                     .HasForeignKey(e => e.OrganisationId)
                     .OnDelete(DeleteBehavior.Cascade);

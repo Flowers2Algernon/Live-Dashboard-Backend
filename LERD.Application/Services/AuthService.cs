@@ -11,7 +11,7 @@ public class AuthService(ApplicationDbContext context, JwtHelper jwtHelper) : IA
 {
     public async Task<LoginResponse> ValidateLoginAsync(LoginRequest request)
     {
-        var user = await context.User
+        var user = await context.Users
             .FirstOrDefaultAsync(u =>
                 u.Username == request.Username &&
                 u.IsActive);

@@ -21,7 +21,7 @@ namespace LERD.Application.Services
         public async Task<UserSurveysResponse> GetUserSurveysAsync(Guid userId)
         {
             // 简单的JOIN查询 - Linus式：直接了当，无废话
-            var user = await _context.User
+            var user = await _context.Users
                 .Include(u => u.Organisation)
                 .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
 
@@ -38,7 +38,7 @@ namespace LERD.Application.Services
                 .Select(s => new UserSurveyDto
                 {
                     SurveyId = s.Id,
-                    SurveyName = s.Name,
+                    SurveyName = s.Name ?? "Untitled Survey",
                     ServiceType = s.ServiceType ?? "",
                     Status = s.Status,
                     IsDefault = false  // 先设为false，后面处理默认逻辑
