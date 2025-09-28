@@ -131,8 +131,8 @@ public class PeriodFilter
     }
     
     /// <summary>
-    /// Build SQL WHERE clause for period filtering based on EndDate field in JSON
-    /// Enhanced to support date range filtering across years
+    /// Build SQL WHERE clause for period filtering based on period_year and period_month database fields
+    /// Fixed to use actual database schema: period_year (INTEGER) + period_month (SMALLINT 1-12)
     /// </summary>
     /// <returns>SQL condition string</returns>
     public string BuildWhereClause()
@@ -142,20 +142,53 @@ public class PeriodFilter
             
         return Type switch
         {
+            // 年份筛选：使用period_year字段
             PeriodFilterType.Year => 
-                $"sr.response_data->>'EndDate' LIKE '{Year}-%'",
+                $"sr.period_year = {Year}",
                 
+            // 单月筛选：同时使用period_year和period_month字段
             PeriodFilterType.Months when Months.Count == 1 => 
-                $"sr.response_data->>'EndDate' LIKE '{Year:D4}-{Months[0]:D2}-%'",
+                $"sr.period_year = {Year} AND sr.period_month = {Months[0]}",
                 
+            // 多月筛选：同年多个月份
             PeriodFilterType.Months when Months.Count > 1 =>
-                $"({string.Join(" OR ", Months.Select(m => $"sr.response_data->>'EndDate' LIKE '{Year:D4}-{m:D2}-%'"))})",
+                $"sr.period_year = {Year} AND sr.period_month IN ({string.Join(",", Months)})",
                 
+            // 月份范围筛选：跨年支持
             PeriodFilterType.DateRange =>
-                $"(sr.response_data->>'EndDate' >= '{StartDate:yyyy-MM-dd}' AND sr.response_data->>'EndDate' <= '{EndDate:yyyy-MM-dd}')",
+                BuildDateRangeWhereClause(),
                 
             _ => "1=1"
         };
+    }
+
+    /// <summary>
+    /// Helper method to build WHERE clause for date ranges (supports cross-year ranges)
+    /// </summary>
+    private string BuildDateRangeWhereClause()
+    {
+        if (StartDate == null || EndDate == null)
+            return "1=1";
+            
+        var startYear = StartDate.Value.Year;
+        var startMonth = StartDate.Value.Month;
+        var endYear = EndDate.Value.Year;
+        var endMonth = EndDate.Value.Month;
+        
+        if (startYear == endYear)
+        {
+            // 同年范围：简单的month范围查询
+            return $"sr.period_year = {startYear} AND sr.period_month BETWEEN {startMonth} AND {endMonth}";
+        }
+        else
+        {
+            // 跨年范围：需要更复杂的查询
+            return $@"(
+            (sr.period_year = {startYear} AND sr.period_month >= {startMonth}) OR
+            (sr.period_year > {startYear} AND sr.period_year < {endYear}) OR
+            (sr.period_year = {endYear} AND sr.period_month <= {endMonth})
+        )";
+        }
     }
     
     /// <summary>

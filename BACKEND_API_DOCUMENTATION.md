@@ -74,13 +74,15 @@ All Chart APIs now support advanced time period filtering with multiple formats:
 - **Year**: `period=2025` - Filter by entire year
 - **Single Month**: `period=2025-07` - Filter by specific month (data up to end of month)
 - **Multiple Months**: `period=2025-07,2025-08` - Filter by multiple months in same year
+- **Date Range**: `period=2024-05:2025-08` - Filter by month range (supports cross-year) **NEW**
 - **No Filter**: Leave `period` parameter empty to get all available data
 
 ### Notes:
 - ✅ **Backward Compatible**: Existing `period=2025` format continues to work
+- ✅ **Cross-Year Support**: Date range format supports filtering across years (e.g., `2024-12:2025-03`)
 - ✅ **Error Handling**: Invalid formats gracefully degrade to show all data
-- ✅ **Cross-Year Prevention**: Multi-month selection across different years is not allowed
 - ✅ **Applied to All Chart APIs**: Same filtering logic works across all chart endpoints
+- 🆕 **Frontend Integration**: Perfect for date range pickers and advanced filtering components
 
 ---
 
