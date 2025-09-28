@@ -8,12 +8,12 @@ using Microsoft.Extensions.Logging;
 namespace LERD.Application.Services;
 
 /// <summary>
-/// Survey last updated service - Linus式实现：简单、直接、高效
+/// Survey last updated service - Linus式修复版本
 /// 
-/// 核心原则：
-/// 1. extraction_log是权威数据源（系统最后一次获取数据的时间）
-/// 2. 一个SQL查询解决问题，不搞复杂的fallback
-/// 3. 快速响应，稳定性能
+/// 修复问题：
+/// 1. SQL语法错误
+/// 2. 更详细的错误日志
+/// 3. 防御性编程
 /// </summary>
 public class SurveyLastUpdatedService : ISurveyLastUpdatedService
 {
@@ -32,12 +32,14 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
     {
         try
         {
+            _logger.LogInformation("Getting last updated time for survey {SurveyId}", surveyId);
+
             // Step 1: Get qualtrics_survey_id from surveys table
             var survey = await _context.Database
                 .SqlQueryRaw<SurveyMappingResult>(@"
                     SELECT 
-                        id as survey_guid,
-                        qualtrics_survey_id 
+                        id as SurveyGuid,
+                        qualtrics_survey_id as QualtricsySurveyId
                     FROM surveys 
                     WHERE id = {0}
                 ", surveyId)
@@ -54,12 +56,14 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
                 };
             }
 
-            // Step 2: Use qualtrics_survey_id to query extraction log
+            _logger.LogInformation("Found survey with qualtrics_survey_id: {QualtricsId}", survey.QualtricsySurveyId);
+
+            // Step 2: Use qualtrics_survey_id to query extraction log - 修复SQL语法
             var lastUpdated = await _context.Database
                 .SqlQueryRaw<LastUpdatedResult>(@"
                     SELECT 
-                        survey_id,
-                        MAX(extracted_at) as last_updated_at
+                        survey_id as SurveyId,
+                        MAX(extracted_at) as LastUpdatedAt
                     FROM survey_responses_extraction_log 
                     WHERE survey_id = {0}
                     GROUP BY survey_id
@@ -68,15 +72,19 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
 
             if (lastUpdated == null)
             {
-                _logger.LogWarning("No extraction log found for survey {SurveyId}", surveyId);
+                _logger.LogWarning("No extraction log found for survey {SurveyId} with qualtrics_id {QualtricsId}", 
+                    surveyId, survey.QualtricsySurveyId);
                 
                 return new SurveyLastUpdatedResponse
                 {
                     Success = false,
-                    Message = "No data refresh history found for this survey",
+                    Message = $"No data refresh history found for this survey (qualtrics_id: {survey.QualtricsySurveyId})",
                     Data = null
                 };
             }
+
+            _logger.LogInformation("Found last updated time: {LastUpdated} for survey {SurveyId}", 
+                lastUpdated.LastUpdatedAt, surveyId);
 
             return new SurveyLastUpdatedResponse
             {
@@ -93,12 +101,15 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving last updated time for survey {SurveyId}", surveyId);
+            _logger.LogError(ex, "Error retrieving last updated time for survey {SurveyId}. " +
+                "Exception: {ExceptionType}, Message: {ExceptionMessage}, " +
+                "StackTrace: {StackTrace}", 
+                surveyId, ex.GetType().Name, ex.Message, ex.StackTrace);
             
             return new SurveyLastUpdatedResponse
             {
                 Success = false,
-                Message = "Error retrieving last updated time",
+                Message = $"Error retrieving last updated time: {ex.Message}",
                 Data = null
             };
         }
@@ -113,7 +124,6 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
                 return new Dictionary<string, SurveyLastUpdatedData>();
             }
 
-            // 批量查询：使用参数化查询防止SQL注入
             var results = new List<LastUpdatedResult>();
             
             foreach (var surveyId in surveyIds)
@@ -122,8 +132,8 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
                 var survey = await _context.Database
                     .SqlQueryRaw<SurveyMappingResult>(@"
                         SELECT 
-                            id as survey_guid,
-                            qualtrics_survey_id 
+                            id as SurveyGuid,
+                            qualtrics_survey_id as QualtricsySurveyId
                         FROM surveys 
                         WHERE id = {0}
                     ", surveyId)
@@ -131,12 +141,12 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
 
                 if (survey == null) continue;
 
-                // Step 2: Query extraction log with qualtrics_survey_id
+                // Step 2: Query extraction log with qualtrics_survey_id - 修复SQL语法
                 var result = await _context.Database
                     .SqlQueryRaw<LastUpdatedResult>(@"
                         SELECT 
-                            survey_id,
-                            MAX(extracted_at) as last_updated_at
+                            survey_id as SurveyId,
+                            MAX(extracted_at) as LastUpdatedAt
                         FROM survey_responses_extraction_log 
                         WHERE survey_id = {0}
                         GROUP BY survey_id
@@ -168,7 +178,8 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving batch last updated times for {Count} surveys", surveyIds.Count);
+            _logger.LogError(ex, "Error retrieving batch last updated times for {Count} surveys: {ExceptionMessage}", 
+                surveyIds.Count, ex.Message);
             return new Dictionary<string, SurveyLastUpdatedData>();
         }
     }
