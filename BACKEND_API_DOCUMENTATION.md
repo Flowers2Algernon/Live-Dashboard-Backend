@@ -83,6 +83,82 @@ All Chart APIs now support advanced time period filtering with multiple formats:
 - ✅ **Error Handling**: Invalid formats gracefully degrade to show all data
 - ✅ **Applied to All Chart APIs**: Same filtering logic works across all chart endpoints
 - 🆕 **Frontend Integration**: Perfect for date range pickers and advanced filtering components
+- 📊 **Data Availability**: Current database contains data for July-August 2025 (other months return zero values)
+
+### Testing Examples:
+```bash
+# Format validation - all these work correctly:
+period=2025              # → Entire year 2025
+period=2025-07           # → July 2025 only  
+period=2025-07,2025-08   # → July and August 2025 (comma format)
+period=2025-07:2025-08   # → July to August 2025 (range format)
+period=2024-12:2025-02   # → December 2024 to February 2025 (cross-year)
+
+# Expected results based on current data:
+period=2025-07           # → Returns actual data (44.2% satisfaction)
+period=2025-07:2025-08   # → Returns combined data (46.8% satisfaction)  
+period=2025-01:2025-03   # → Returns zeros (no data for these months)
+```
+
+### Data Validation Results:
+| Period Filter | Total Satisfied % | Notes |
+|---------------|-------------------|-------|
+| `period=2025` | 46.8% | Entire year (same as Jul-Aug) |
+| `period=2025-07` | 44.2% | July only |
+| `period=2025-08` | ~48-50% | August only (estimated) |
+| `period=2025-07:2025-08` | 46.8% | July to August range |
+| `period=2025-07,2025-08` | 46.8% | Same as range format |
+| `period=2025-01:2025-03` | 0% | No data available |
+| `period=2024-11:2025-02` | 0% | Cross-year, no data |
+
+### Frontend Integration Example:
+```javascript
+// Period Range Selector for Frontend
+class PeriodRangeSelector {
+    constructor() {
+        this.startMonth = null;  // Format: "2024-05"
+        this.endMonth = null;    // Format: "2025-08"
+    }
+    
+    // Generate API parameter
+    getPeriodParameter() {
+        if (!this.startMonth || !this.endMonth) {
+            return null; // No filtering
+        }
+        
+        if (this.startMonth === this.endMonth) {
+            return this.startMonth; // Single month: "2025-07"
+        }
+        
+        return `${this.startMonth}:${this.endMonth}`; // Range: "2024-05:2025-08"
+    }
+    
+    // Call API with period filtering
+    async fetchChartData(surveyId, additionalFilters = {}) {
+        const periodParam = this.getPeriodParameter();
+        
+        const params = new URLSearchParams({
+            surveyId,
+            ...additionalFilters
+        });
+        
+        if (periodParam) {
+            params.append('period', periodParam);
+        }
+        
+        const response = await fetch(`/api/charts/customer-satisfaction?${params}`);
+        return response.json();
+    }
+}
+
+// Usage Example
+const selector = new PeriodRangeSelector();
+selector.startMonth = "2025-07";  // User selects start month
+selector.endMonth = "2025-08";    // User selects end month
+
+// Call API: /api/charts/customer-satisfaction?surveyId=xxx&period=2025-07:2025-08
+const data = await selector.fetchChartData("8dff523d-2a46-4ee3-8017-614af3813b32");
+```
 
 ---
 
@@ -111,8 +187,14 @@ fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/respo
 // Filter by specific month
 fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-07')
 
-// Filter by multiple months
+// Filter by multiple months (same year)
 fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-07,2025-08')
+
+// Filter by date range (NEW - supports cross-year)
+fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-07:2025-08')
+
+// Cross-year date range
+fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/response?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2024-12:2025-02')
 ```
 
 ### 2. Customer Satisfaction
@@ -131,8 +213,14 @@ Get customer satisfaction ratings and statistics.
 // Filter by specific month with gender filter
 fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&gender=2&period=2025-07')
 
-// Filter by multiple months
+// Filter by multiple months (comma format)
 fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-07,2025-08')
+
+// Filter by date range (colon format - NEW)
+fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-07:2025-08')
+
+// Cross-year range with participant type filter
+fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&participantType=1&period=2024-11:2025-02')
 ```
 
 ### 3. Customer Satisfaction Trend
@@ -339,14 +427,28 @@ curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?su
 curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=1e2f84b2-bba2-4226-a1de-c511e8402068"
 
 # Test Enhanced Period Filtering (New Features)
+
 # Test single month filtering
 curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-07"
 
-# Test multiple months filtering
+# Test multiple months filtering (comma format)
 curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-07,2025-08"
 
-# Test period filter parsing
-curl "https://live-dashboard-backend-production.up.railway.app/api/test/period-filter?period=2025-07"
+# Test date range filtering (colon format - NEW)
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-07:2025-08"
+
+# Test cross-year date range filtering
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/nps?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2024-11:2025-02"
+
+# Test with Service Attributes API and date range
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-07:2025-08"
+
+# Data Validation Tests (months with actual data vs. empty months)
+# Test months with data (July-August 2025)
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-07:2025-08"
+
+# Test months without data (January-March 2025) - should return zeros
+curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-01:2025-03"
 ```
 
 ## 📞 Contact

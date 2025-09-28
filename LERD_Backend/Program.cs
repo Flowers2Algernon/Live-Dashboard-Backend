@@ -42,6 +42,7 @@ builder.Services.AddScoped<ICustomerSatisfactionTrendService, CustomerSatisfacti
 builder.Services.AddScoped<INPSService, NPSService>();
 builder.Services.AddScoped<IServiceAttributeService, ServiceAttributeService>();
 builder.Services.AddScoped<IUserSurveyService, UserSurveyService>();
+builder.Services.AddScoped<ISurveyLastUpdatedService, SurveyLastUpdatedService>();
 
 // 从环境变量或配置构建数据库连接字符串
 // var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
