@@ -32,7 +32,29 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
     {
         try
         {
-            // Linus式SQL：简单直接，一次查询解决问题
+            // Step 1: Get qualtrics_survey_id from surveys table
+            var survey = await _context.Database
+                .SqlQueryRaw<SurveyMappingResult>(@"
+                    SELECT 
+                        id as survey_guid,
+                        qualtrics_survey_id 
+                    FROM surveys 
+                    WHERE id = {0}
+                ", surveyId)
+                .FirstOrDefaultAsync();
+
+            if (survey == null)
+            {
+                _logger.LogWarning("Survey not found with ID {SurveyId}", surveyId);
+                return new SurveyLastUpdatedResponse
+                {
+                    Success = false,
+                    Message = "Survey not found",
+                    Data = null
+                };
+            }
+
+            // Step 2: Use qualtrics_survey_id to query extraction log
             var lastUpdated = await _context.Database
                 .SqlQueryRaw<LastUpdatedResult>(@"
                     SELECT 
@@ -41,7 +63,7 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
                     FROM survey_responses_extraction_log 
                     WHERE survey_id = {0}
                     GROUP BY survey_id
-                ", surveyId)
+                ", survey.QualtricsySurveyId)
                 .FirstOrDefaultAsync();
 
             if (lastUpdated == null)
@@ -96,6 +118,20 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
             
             foreach (var surveyId in surveyIds)
             {
+                // Step 1: Get qualtrics_survey_id
+                var survey = await _context.Database
+                    .SqlQueryRaw<SurveyMappingResult>(@"
+                        SELECT 
+                            id as survey_guid,
+                            qualtrics_survey_id 
+                        FROM surveys 
+                        WHERE id = {0}
+                    ", surveyId)
+                    .FirstOrDefaultAsync();
+
+                if (survey == null) continue;
+
+                // Step 2: Query extraction log with qualtrics_survey_id
                 var result = await _context.Database
                     .SqlQueryRaw<LastUpdatedResult>(@"
                         SELECT 
@@ -104,7 +140,7 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
                         FROM survey_responses_extraction_log 
                         WHERE survey_id = {0}
                         GROUP BY survey_id
-                    ", surveyId)
+                    ", survey.QualtricsySurveyId)
                     .FirstOrDefaultAsync();
                     
                 if (result != null)
@@ -117,9 +153,9 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
 
             foreach (var result in results)
             {
-                dictionary[result.SurveyId.ToString()] = new SurveyLastUpdatedData
+                dictionary[result.SurveyId] = new SurveyLastUpdatedData
                 {
-                    SurveyId = result.SurveyId.ToString(),
+                    SurveyId = result.SurveyId,
                     LastUpdatedAt = result.LastUpdatedAt,
                     Source = "extraction_log",
                     FormattedTime = result.LastUpdatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")
@@ -143,7 +179,17 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
     /// </summary>
     private class LastUpdatedResult
     {
-        public Guid SurveyId { get; set; }
+        public string SurveyId { get; set; } = string.Empty;
         public DateTime LastUpdatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Internal class for survey mapping query results
+    /// Maps GUID survey ID to Qualtrics survey ID
+    /// </summary>
+    private class SurveyMappingResult
+    {
+        public Guid SurveyGuid { get; set; }
+        public string QualtricsySurveyId { get; set; } = string.Empty;
     }
 }
