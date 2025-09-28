@@ -12,7 +12,7 @@ Current surveys available in the production database:
 - **Survey ID**: `8dff523d-2a46-4ee3-8017-614af3813b32` (Retirement Village survey)
 - **Survey ID**: `1e2f84b2-bba2-4226-a1de-c511e8402068` (Residential Care - Nursing Home survey)
 
-Use either of these survey IDs when testing chart endpoints and user survey endpoints.
+Use either of these survey IDs when testing chart endpoints, user survey endpoints, and last updated APIs.
 
 ## 🔐 Authentication API
 
@@ -278,6 +278,84 @@ Get service attribute ratings.
 fetch('https://live-dashboard-backend-production.up.railway.app/api/charts/service-attributes?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32')
 ```
 
+## ⏰ Survey Data Freshness API
+
+### Get Last Updated Time
+Shows when survey data was last refreshed/imported from Qualtrics.
+
+**Endpoint:** `GET /surveys/{surveyId}/last-updated`
+
+**Parameters:**
+- `surveyId` (required): GUID of the survey
+  - `8dff523d-2a46-4ee3-8017-614af3813b32` (Retirement Village)
+  - `1e2f84b2-bba2-4226-a1de-c511e8402068` (Residential Care)
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Last updated time retrieved successfully",
+  "data": {
+    "surveyId": "8dff523d-2a46-4ee3-8017-614af3813b32",
+    "lastUpdatedAt": "2025-09-22T09:40:28.028142Z",
+    "source": "extraction_log",
+    "formattedTime": "2025-09-22 09:40:28 UTC"
+  }
+}
+```
+
+**Error Response (Survey Not Found):**
+```json
+{
+  "success": false,
+  "message": "Survey not found",
+  "data": null
+}
+```
+
+**Error Response (No Data):**
+```json
+{
+  "success": false,
+  "message": "No data refresh history found for this survey",
+  "data": null
+}
+```
+
+**Examples:**
+```javascript
+// Get last updated time for Retirement Village survey
+fetch('https://live-dashboard-backend-production.up.railway.app/api/surveys/8dff523d-2a46-4ee3-8017-614af3813b32/last-updated')
+
+// Get last updated time for Residential Care survey  
+fetch('https://live-dashboard-backend-production.up.railway.app/api/surveys/1e2f84b2-bba2-4226-a1de-c511e8402068/last-updated')
+
+// Frontend integration example
+async function showDataFreshness(surveyId) {
+  try {
+    const response = await fetch(`/api/surveys/${surveyId}/last-updated`);
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`Data last updated: ${result.data.formattedTime}`);
+      // Show in UI: "Data last refreshed: 2025-09-22 09:40:28 UTC"
+    } else {
+      console.log('No data refresh information available');
+    }
+  } catch (error) {
+    console.error('Failed to get data freshness info:', error);
+  }
+}
+```
+
+**Use Cases:**
+- 📊 **Dashboard Footer**: Show "Last updated" timestamp
+- 🔄 **Data Sync Status**: Indicate when data was last imported
+- ⚠️ **Staleness Warning**: Alert if data is too old
+- 📱 **Mobile Apps**: Cache invalidation based on update time
+
+---
+
 ## � User Survey APIs
 
 ### 1. Get User Surveys
@@ -449,6 +527,17 @@ curl "https://live-dashboard-backend-production.up.railway.app/api/charts/custom
 
 # Test months without data (January-March 2025) - should return zeros
 curl "https://live-dashboard-backend-production.up.railway.app/api/charts/customer-satisfaction?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32&period=2025-01:2025-03"
+
+# Test Last Updated API (New Feature)
+
+# Test last updated time for Retirement Village survey
+curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/8dff523d-2a46-4ee3-8017-614af3813b32/last-updated"
+
+# Test last updated time for Residential Care survey
+curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/1e2f84b2-bba2-4226-a1de-c511e8402068/last-updated"
+
+# Test with invalid survey ID (should return error)
+curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/00000000-0000-0000-0000-000000000000/last-updated"
 ```
 
 ## 📞 Contact
