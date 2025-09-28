@@ -72,7 +72,7 @@ public class NewDebugController : ControllerBase
             return new
             {
                 Found = true,
-                SurveyGuid = reader.GetGuid("survey_guid"),
+                SurveyGuid = reader.GetGuid(0),
                 QualtricsId = reader.GetString(1),
                 Name = reader.IsDBNull(2) ? null : reader.GetString(2),
                 Status = reader.IsDBNull(3) ? null : reader.GetString(3)
