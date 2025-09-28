@@ -34,18 +34,19 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
         {
             _logger.LogInformation("Getting last updated time for survey {SurveyId}", surveyId);
 
-            // Step 1: Get qualtrics_survey_id from surveys table
-            var survey = await _context.Database
-                .SqlQueryRaw<SurveyMappingResult>(@"
-                    SELECT 
-                        id as SurveyGuid,
-                        qualtrics_survey_id as QualtricsySurveyId
-                    FROM surveys 
-                    WHERE id = {0}
-                ", surveyId)
-                .FirstOrDefaultAsync();
+            // 使用原生SQL避免EF Core参数化查询的问题
+            var connectionString = _context.Database.GetConnectionString();
+            using var connection = new Npgsql.NpgsqlConnection(connectionString);
+            await connection.OpenAsync();
 
-            if (survey == null)
+            // Step 1: Get qualtrics_survey_id from surveys table
+            var surveyCommand = new Npgsql.NpgsqlCommand(
+                "SELECT qualtrics_survey_id FROM surveys WHERE id = @surveyId", connection);
+            surveyCommand.Parameters.AddWithValue("surveyId", surveyId);
+            
+            var qualtricsId = await surveyCommand.ExecuteScalarAsync() as string;
+            
+            if (qualtricsId == null)
             {
                 _logger.LogWarning("Survey not found with ID {SurveyId}", surveyId);
                 return new SurveyLastUpdatedResponse
@@ -56,35 +57,36 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
                 };
             }
 
-            _logger.LogInformation("Found survey with qualtrics_survey_id: {QualtricsId}", survey.QualtricsySurveyId);
+            _logger.LogInformation("Found survey with qualtrics_survey_id: {QualtricsId}", qualtricsId);
 
-            // Step 2: Use qualtrics_survey_id to query extraction log - 修复SQL语法
-            var lastUpdated = await _context.Database
-                .SqlQueryRaw<LastUpdatedResult>(@"
-                    SELECT 
-                        survey_id as SurveyId,
-                        MAX(extracted_at) as LastUpdatedAt
-                    FROM survey_responses_extraction_log 
-                    WHERE survey_id = {0}
-                    GROUP BY survey_id
-                ", survey.QualtricsySurveyId)
-                .FirstOrDefaultAsync();
+            // Step 2: Query extraction log
+            var extractionCommand = new Npgsql.NpgsqlCommand(@"
+                SELECT 
+                    survey_id,
+                    MAX(extracted_at) as last_updated_at
+                FROM survey_responses_extraction_log 
+                WHERE survey_id = @qualtricsId
+                GROUP BY survey_id", connection);
+            extractionCommand.Parameters.AddWithValue("qualtricsId", qualtricsId);
 
-            if (lastUpdated == null)
+            using var reader = await extractionCommand.ExecuteReaderAsync();
+            
+            if (!await reader.ReadAsync())
             {
                 _logger.LogWarning("No extraction log found for survey {SurveyId} with qualtrics_id {QualtricsId}", 
-                    surveyId, survey.QualtricsySurveyId);
+                    surveyId, qualtricsId);
                 
                 return new SurveyLastUpdatedResponse
                 {
                     Success = false,
-                    Message = $"No data refresh history found for this survey (qualtrics_id: {survey.QualtricsySurveyId})",
+                    Message = $"No data refresh history found for this survey (qualtrics_id: {qualtricsId})",
                     Data = null
                 };
             }
 
+            var lastUpdatedAt = reader.GetDateTime(1); // Use column index instead of name
             _logger.LogInformation("Found last updated time: {LastUpdated} for survey {SurveyId}", 
-                lastUpdated.LastUpdatedAt, surveyId);
+                lastUpdatedAt, surveyId);
 
             return new SurveyLastUpdatedResponse
             {
@@ -93,9 +95,9 @@ public class SurveyLastUpdatedService : ISurveyLastUpdatedService
                 Data = new SurveyLastUpdatedData
                 {
                     SurveyId = surveyId.ToString(),
-                    LastUpdatedAt = lastUpdated.LastUpdatedAt,
+                    LastUpdatedAt = lastUpdatedAt,
                     Source = "extraction_log",
-                    FormattedTime = lastUpdated.LastUpdatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")
+                    FormattedTime = lastUpdatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")
                 }
             };
         }
