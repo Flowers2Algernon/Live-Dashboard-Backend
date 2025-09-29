@@ -115,7 +115,7 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
         {
             _logger.LogInformation("🔍 Getting available regions for survey {SurveyId}", surveyId);
 
-            // 修复：使用正确的JSON路径（与BaseChartService一致）
+            // ✅ 修复：使用实际的JSON结构 - Facility在根级别，不在participant_info里！
             var facilityData = await _context.Database
                 .SqlQueryRaw<FacilityData>(@"
                     SELECT 
@@ -130,7 +130,7 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
 
             _logger.LogInformation("📊 Found {Count} unique facilities", facilityData.Count);
 
-            // 转换为RegionOption并应用facility mapping
+            // 转换为RegionOption并应用facility mapping  
             var regions = facilityData
                 .Where(f => !string.IsNullOrEmpty(f.FacilityCode))
                 .Select(f => new RegionOption
@@ -138,9 +138,9 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
                     FacilityCode = f.FacilityCode,
                     RegionName = _facilityMapping.GetValueOrDefault(f.FacilityCode, f.FacilityCode),
                     ParticipantCount = f.ParticipantCount,
-                    IsSelected = false // Will be set by GetUserFiltersAsync
+                    IsSelected = false
                 })
-                .OrderBy(r => r.RegionName)
+                .OrderBy(r => r.FacilityCode)
                 .ToList();
 
             _logger.LogInformation("✅ Returning {Count} regions", regions.Count);

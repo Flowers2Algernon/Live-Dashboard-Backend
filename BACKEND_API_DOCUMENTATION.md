@@ -12,7 +12,7 @@ Current surveys available in the production database:
 - **Survey ID**: `8dff523d-2a46-4ee3-8017-614af3813b32` (Retirement Village survey)
 - **Survey ID**: `1e2f84b2-bba2-4226-a1de-c511e8402068` (Residential Care - Nursing Home survey)
 
-Use either of these survey IDs when testing chart endpoints, user survey endpoints, and last updated APIs.
+Use either of these survey IDs when testing chart endpoints, user survey endpoints, filter management APIs, and last updated APIs.
 
 ## 🔐 Authentication API
 
@@ -444,6 +444,284 @@ fetch('https://live-dashboard-backend-production.up.railway.app/api/users/e8268d
 fetch('https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/surveys/default')
 ```
 
+---
+
+## 🎛️ Filter Management APIs
+
+The Filter Management APIs provide unified endpoints for retrieving available filter options for dashboard components. These APIs support dynamic dropdown population and filter state management in the frontend.
+
+### ✨ Key Features:
+- **🔄 Dynamic Filtering**: Populate dropdowns based on actual user/survey data
+- **👤 User-Scoped Services**: Get services based on user's accessible surveys
+- **📊 Survey-Specific Regions**: Get regions from actual response data per survey
+- **🎯 Data-Driven**: Only show options with actual data (no empty filters)
+- **⚡ Fast Response**: Optimized for quick dropdown population
+- **🔗 Frontend Ready**: Designed for seamless dashboard integration
+
+### 1. Get User Services
+Retrieve all available service types for a specific user based on their accessible surveys.
+
+**Endpoint:** `GET /users/{userId}/services`
+
+**Parameters:**
+- `userId` (required): GUID of the user
+
+**Description:**
+Returns all unique service types from surveys accessible to the user. This is used to populate service filter dropdowns in the dashboard.
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Services retrieved successfully",
+  "data": {
+    "services": [
+      "Retirement Village",
+      "Residential Care - Nursing Home",
+      "Home Care",
+      "Respite Care"
+    ]
+  }
+}
+```
+
+**Error Response (User Not Found):**
+```json
+{
+  "success": false,
+  "message": "User not found",
+  "data": null
+}
+```
+
+**Frontend Usage:**
+```javascript
+// Populate service filter dropdown
+async function loadServiceFilter(userId) {
+  try {
+    const response = await fetch(`https://live-dashboard-backend-production.up.railway.app/api/users/${userId}/services`);
+    const result = await response.json();
+    
+    if (result.success) {
+      const services = result.data.services;
+      // Populate dropdown with services
+      const dropdown = document.getElementById('serviceFilter');
+      services.forEach(service => {
+        const option = document.createElement('option');
+        option.value = service;
+        option.textContent = service;
+        dropdown.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error('Error loading services:', error);
+  }
+}
+
+// Example usage
+loadServiceFilter('1df07f08-f487-4a36-8522-cf17bc69d50b');
+```
+
+**Test Cases:**
+```bash
+# Test with user wayne (has survey access)
+curl "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/services"
+
+# Test with user sithu (no survey access - returns empty array)
+curl "https://live-dashboard-backend-production.up.railway.app/api/users/e8268d06-61f4-40bc-a03f-29416f1a8aaa/services"
+
+# Test with invalid user ID (returns error)
+curl "https://live-dashboard-backend-production.up.railway.app/api/users/00000000-0000-0000-0000-000000000000/services"
+```
+
+### 2. Get Survey Regions
+Retrieve all available regions/facilities for a specific survey based on actual response data.
+
+**Endpoint:** `GET /surveys/{surveyId}/regions`
+
+**Parameters:**
+- `surveyId` (required): GUID of the survey
+
+**Description:**
+Returns all unique regions/facilities from actual survey responses. This is used to populate region filter dropdowns and ensures only regions with actual data are shown.
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Regions retrieved successfully",
+  "data": {
+    "regions": [
+      "Eastwood",
+      "Westfield", 
+      "Central District",
+      "North Shore"
+    ]
+  }
+}
+```
+
+**No Data Response:**
+```json
+{
+  "success": true,
+  "message": "No regions found for this survey",
+  "data": {
+    "regions": []
+  }
+}
+```
+
+**Error Response (Survey Not Found):**
+```json
+{
+  "success": false,
+  "message": "Survey not found",
+  "data": null
+}
+```
+
+**Frontend Usage:**
+```javascript
+// Populate region filter dropdown
+async function loadRegionFilter(surveyId) {
+  try {
+    const response = await fetch(`https://live-dashboard-backend-production.up.railway.app/api/surveys/${surveyId}/regions`);
+    const result = await response.json();
+    
+    if (result.success) {
+      const regions = result.data.regions;
+      const dropdown = document.getElementById('regionFilter');
+      
+      // Clear existing options
+      dropdown.innerHTML = '<option value="">All Regions</option>';
+      
+      // Add region options
+      regions.forEach(region => {
+        const option = document.createElement('option');
+        option.value = region;
+        option.textContent = region;
+        dropdown.appendChild(option);
+      });
+      
+      // Show/hide dropdown based on available data
+      dropdown.style.display = regions.length > 0 ? 'block' : 'none';
+    }
+  } catch (error) {
+    console.error('Error loading regions:', error);
+  }
+}
+
+// Dynamic region loading when survey changes
+document.getElementById('surveySelector').addEventListener('change', (e) => {
+  const selectedSurveyId = e.target.value;
+  if (selectedSurveyId) {
+    loadRegionFilter(selectedSurveyId);
+  }
+});
+```
+
+**Test Cases:**
+```bash
+# Test with Retirement Village survey (has region data)
+curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/8dff523d-2a46-4ee3-8017-614af3813b32/regions"
+
+# Test with Residential Care survey (has region data)  
+curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/1e2f84b2-bba2-4226-a1de-c511e8402068/regions"
+
+# Test with invalid survey ID (returns error)
+curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/00000000-0000-0000-0000-000000000000/regions"
+```
+
+### Integration Notes
+
+**Dashboard Initialization Pattern:**
+```javascript
+// Complete dashboard filter initialization
+async function initializeDashboard(userId) {
+  try {
+    // 1. Load user's available services
+    const servicesResponse = await fetch(`/api/users/${userId}/services`);
+    const services = await servicesResponse.json();
+    
+    // 2. Load user's surveys to get default survey
+    const surveysResponse = await fetch(`/api/users/${userId}/surveys/default`);
+    const defaultSurvey = await surveysResponse.json();
+    
+    // 3. Load regions for default survey
+    if (defaultSurvey.success) {
+      const regionsResponse = await fetch(`/api/surveys/${defaultSurvey.data.surveyId}/regions`);
+      const regions = await regionsResponse.json();
+      
+      // 4. Initialize UI with loaded data
+      populateServiceDropdown(services.data.services);
+      populateRegionDropdown(regions.data.regions);
+      loadDefaultChartData(defaultSurvey.data.surveyId);
+    }
+  } catch (error) {
+    console.error('Dashboard initialization failed:', error);
+  }
+}
+```
+
+**Filter State Management:**
+```javascript
+// Coordinated filter management
+class DashboardFilterManager {
+  constructor(userId) {
+    this.userId = userId;
+    this.currentSurvey = null;
+    this.availableServices = [];
+    this.availableRegions = [];
+  }
+
+  async initialize() {
+    // Load services first (user-level)
+    const services = await this.loadServices();
+    this.availableServices = services;
+    
+    // Load default survey and its regions
+    const defaultSurvey = await this.loadDefaultSurvey();
+    if (defaultSurvey) {
+      this.currentSurvey = defaultSurvey;
+      this.availableRegions = await this.loadRegions(defaultSurvey.surveyId);
+    }
+  }
+
+  async onSurveyChange(surveyId) {
+    // When survey changes, reload regions for new survey
+    this.availableRegions = await this.loadRegions(surveyId);
+    this.updateRegionDropdown();
+  }
+
+  async loadServices() {
+    const response = await fetch(`/api/users/${this.userId}/services`);
+    const result = await response.json();
+    return result.success ? result.data.services : [];
+  }
+
+  async loadRegions(surveyId) {
+    const response = await fetch(`/api/surveys/${surveyId}/regions`);
+    const result = await response.json();
+    return result.success ? result.data.regions : [];
+  }
+}
+```
+
+**Edge Cases & Error Handling:**
+
+1. **No Survey Access**: User with no surveys returns empty services array
+2. **No Response Data**: Survey with no responses returns empty regions array  
+3. **Invalid IDs**: Invalid user/survey IDs return appropriate error messages
+4. **Network Failures**: Implement retry logic and fallback states
+5. **Data Consistency**: Regions are dynamically loaded per survey to ensure accuracy
+
+**Performance Considerations:**
+- Services are user-scoped (cached per user session)
+- Regions are survey-specific (reload when survey changes)
+- Both endpoints are optimized for fast dropdown population
+- Consider caching strategies for frequently accessed data
+
 ## �📝 Response Format
 
 All APIs return data in this format:
@@ -538,6 +816,26 @@ curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/1e2f8
 
 # Test with invalid survey ID (should return error)
 curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/00000000-0000-0000-0000-000000000000/last-updated"
+
+# Test Filter Management APIs (New Feature)
+
+# Test user services endpoint (user with survey access)
+curl "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/services"
+
+# Test user services endpoint (user with no survey access - returns empty array)  
+curl "https://live-dashboard-backend-production.up.railway.app/api/users/e8268d06-61f4-40bc-a03f-29416f1a8aaa/services"
+
+# Test survey regions endpoint (Retirement Village - has regions)
+curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/8dff523d-2a46-4ee3-8017-614af3813b32/regions"
+
+# Test survey regions endpoint (Residential Care - has regions)
+curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/1e2f84b2-bba2-4226-a1de-c511e8402068/regions"
+
+# Test with invalid user ID (should return error)
+curl "https://live-dashboard-backend-production.up.railway.app/api/users/00000000-0000-0000-0000-000000000000/services"
+
+# Test with invalid survey ID (should return error)  
+curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/00000000-0000-0000-0000-000000000000/regions"
 ```
 
 ## 📞 Contact
