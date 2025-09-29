@@ -38,70 +38,71 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
     {
         try
         {
-            _logger.LogInformation("Getting available services for user {UserId}", userId);
+            _logger.LogInformation("🔍 Getting available services for user {UserId}", userId);
 
-            // 1. 获取用户的organisation（如果用户有组织限制）
+            // 1. 获取用户
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
-                _logger.LogWarning("User {UserId} not found", userId);
+                _logger.LogWarning("❌ User {UserId} not found", userId);
                 return new List<ServiceOption>();
             }
 
-            _logger.LogInformation("User found: {UserId}", userId);
+            _logger.LogInformation("✅ User found: {UserId}, OrgId: {OrgId}", userId, user.OrganisationId);
 
-            // 2. 获取所有active surveys（使用原始SQL查询）
-            var serviceResults = await _context.Database
-                .SqlQueryRaw<ServiceQueryResult>(@"
-                    SELECT 
-                        id as SurveyId,
-                        service_type as ServiceType,
-                        name as ServiceName,
-                        description as Description
-                    FROM surveys 
-                    WHERE status = 'active'
-                    ORDER BY name
-                ")
+            // 2. 先查看数据库中有多少surveys总数
+            var totalSurveys = await _context.Surveys.CountAsync();
+            _logger.LogInformation("🔍 Total surveys in database: {Count}", totalSurveys);
+
+            var activeSurveys = await _context.Surveys.Where(s => s.Status.ToLower() == "active").CountAsync();
+            _logger.LogInformation("🔍 Active surveys in database: {Count}", activeSurveys);
+
+            // 3. 直接用EF Core查询 - 暂时移除organisation过滤进行测试
+            var surveys = await _context.Surveys
+                .Where(s => s.Status.ToLower() == "active")
+                .Select(s => new ServiceOption
+                {
+                    SurveyId = s.Id,
+                    ServiceType = s.ServiceType ?? "",
+                    ServiceName = s.Name ?? "",
+                    Description = s.Description,
+                    IsSelected = false,
+                    TotalResponses = 0 // 先设为0，后面再查
+                })
                 .ToListAsync();
 
-            var services = serviceResults.Select(s => new ServiceOption
+            _logger.LogInformation("📊 Found {Count} surveys (no org filter for testing)", surveys.Count);
+
+            // 如果没有找到surveys，让我们检查原始数据
+            if (surveys.Count == 0)
             {
-                SurveyId = s.SurveyId,
-                ServiceType = s.ServiceType ?? "",
-                ServiceName = s.ServiceName ?? "",
-                Description = s.Description,
-                IsSelected = false // Will be set below
-            }).ToList();
+                var allSurveysWithStatus = await _context.Surveys
+                    .Select(s => new { s.Id, s.Name, s.Status, s.ServiceType })
+                    .ToListAsync();
+                
+                _logger.LogInformation("🔍 All surveys in DB: {@Surveys}", allSurveysWithStatus);
+            }
 
             // 3. 获取用户当前选择的service
             var currentFilter = await _context.UserSavedFilters
                 .Where(f => f.UserId == userId && f.IsDefault)
                 .FirstOrDefaultAsync();
 
-            Guid? selectedSurveyId = null;
-            if (currentFilter != null)
-            {
-                selectedSurveyId = currentFilter.SurveyId;
-            }
+            Guid? selectedSurveyId = currentFilter?.SurveyId;
 
-            // 4. 标记当前选择并获取响应数量
-            foreach (var service in services)
+            // 4. 标记当前选择（暂时跳过响应数量查询以测试基本功能）
+            foreach (var service in surveys)
             {
                 service.IsSelected = service.SurveyId == selectedSurveyId;
-                
-                // 获取该service的响应数量（使用简单的SQL查询）
-                var countResult = await _context.Database
-                    .SqlQueryRaw<CountResult>("SELECT COUNT(*) as Count FROM survey_responses WHERE survey_id = {0}", service.SurveyId)
-                    .FirstOrDefaultAsync();
-                service.TotalResponses = countResult?.Count ?? 0;
+                service.TotalResponses = 0; // 暂时设为0，后续修复SQL查询
             }
 
-            _logger.LogInformation("Found {Count} available services for user {UserId}", services.Count, userId);
-            return services;
+            _logger.LogInformation("✅ Returning {Count} services", surveys.Count);
+            return surveys;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting available services for user {UserId}", userId);
+            _logger.LogError(ex, "❌ Error getting available services for user {UserId}", userId);
             return new List<ServiceOption>();
         }
     }
