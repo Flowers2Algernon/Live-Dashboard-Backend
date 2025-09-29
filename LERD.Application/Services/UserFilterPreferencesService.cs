@@ -13,15 +13,16 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
     private readonly ApplicationDbContext _context;
     private readonly ILogger<UserFilterPreferencesService> _logger;
 
-    // Facility Code to Region Name mapping
+    // Facility Code to Region Name mapping (匹配ResponseChartService)
     private readonly Dictionary<string, string> _facilityMapping = new()
     {
-        { "1", "Mosman Park" },
-        { "2", "Bull Creek" },
-        { "3", "Coolbellup/Salter Point" },
-        { "4", "Roley Stone/Mandurah" },
-        { "5", "Duncraig" },
-        { "6", "South Perth/Karrinyup" }
+        { "3001", "Bull Creek" },
+        { "3002", "Coolbellup" },
+        { "3003", "Mosman Park" },
+        { "3004", "RoleyStone" },
+        { "3005", "South Perth" },
+        { "3006", "Unknown Facility" }, // 从chart API看到的额外facility
+        { "3008", "Duncraig" }
     };
 
     public UserFilterPreferencesService(
@@ -57,9 +58,9 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
             var activeSurveys = await _context.Surveys.Where(s => s.Status.ToLower() == "active").CountAsync();
             _logger.LogInformation("🔍 Active surveys in database: {Count}", activeSurveys);
 
-            // 3. 直接用EF Core查询 - 暂时移除organisation过滤进行测试
+            // 3. 修复：直接比较status，不使用ToLower()
             var surveys = await _context.Surveys
-                .Where(s => s.Status.ToLower() == "active")
+                .Where(s => s.OrganisationId == user.OrganisationId && s.Status == "active")
                 .Select(s => new ServiceOption
                 {
                     SurveyId = s.Id,
@@ -67,11 +68,12 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
                     ServiceName = s.Name ?? "",
                     Description = s.Description,
                     IsSelected = false,
-                    TotalResponses = 0 // 先设为0，后面再查
+                    TotalResponses = 0
                 })
                 .ToListAsync();
 
-            _logger.LogInformation("📊 Found {Count} surveys (no org filter for testing)", surveys.Count);
+            _logger.LogInformation("✅ Found {Count} active surveys for organisation {OrgId}", 
+                surveys.Count, user.OrganisationId);
 
             // 如果没有找到surveys，让我们检查原始数据
             if (surveys.Count == 0)
@@ -111,20 +113,22 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
     {
         try
         {
-            _logger.LogInformation("Getting available regions for survey {SurveyId}", surveyId);
+            _logger.LogInformation("🔍 Getting available regions for survey {SurveyId}", surveyId);
 
-            // 从survey_responses中提取所有唯一的facility codes
+            // 修复：使用正确的JSON路径（与BaseChartService一致）
             var facilityData = await _context.Database
                 .SqlQueryRaw<FacilityData>(@"
                     SELECT 
-                        response_data->>'$.participant_info.facility' as FacilityCode,
-                        COUNT(*) as ParticipantCount
+                        response_data->>'Facility' as FacilityCode,
+                        COUNT(*)::integer as ParticipantCount
                     FROM survey_responses 
                     WHERE survey_id = {0}
-                      AND response_data->>'$.participant_info.facility' IS NOT NULL
-                    GROUP BY response_data->>'$.participant_info.facility'
+                      AND response_data->>'Facility' IS NOT NULL
+                    GROUP BY response_data->>'Facility'
                 ", surveyId)
                 .ToListAsync();
+
+            _logger.LogInformation("📊 Found {Count} unique facilities", facilityData.Count);
 
             // 转换为RegionOption并应用facility mapping
             var regions = facilityData
@@ -139,12 +143,12 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
                 .OrderBy(r => r.RegionName)
                 .ToList();
 
-            _logger.LogInformation("Found {Count} available regions for survey {SurveyId}", regions.Count, surveyId);
+            _logger.LogInformation("✅ Returning {Count} regions", regions.Count);
             return regions;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting available regions for survey {SurveyId}", surveyId);
+            _logger.LogError(ex, "❌ Error getting available regions for survey {SurveyId}", surveyId);
             return new List<RegionOption>();
         }
     }
@@ -172,9 +176,10 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
             // 获取Period选项（从数据中提取）
             var periods = await _context.Database
                 .SqlQueryRaw<string>(@"
-                    SELECT DISTINCT CONCAT(period_year, '-', LPAD(period_month::text, 2, '0'))
+                    SELECT DISTINCT CONCAT(period_year, '-', LPAD(period_month::text, 2, '0')) as period
                     FROM survey_responses 
                     WHERE survey_id = {0}
+                      AND period_year IS NOT NULL
                     ORDER BY CONCAT(period_year, '-', LPAD(period_month::text, 2, '0')) DESC
                 ", surveyId)
                 .ToListAsync();
