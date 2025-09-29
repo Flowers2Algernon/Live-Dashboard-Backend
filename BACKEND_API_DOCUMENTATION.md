@@ -473,24 +473,26 @@ Returns all unique service types from surveys accessible to the user. This is us
 ```json
 {
   "success": true,
-  "message": "Services retrieved successfully",
-  "data": {
-    "services": [
-      "Retirement Village",
-      "Residential Care - Nursing Home",
-      "Home Care",
-      "Respite Care"
-    ]
-  }
+  "message": "Found 1 services",
+  "data": [
+    {
+      "surveyId": "8dff523d-2a46-4ee3-8017-614af3813b32",
+      "serviceType": "Retirement Village",
+      "serviceName": "Retirement Village", 
+      "description": "",
+      "isSelected": false,
+      "totalResponses": 0
+    }
+  ]
 }
 ```
 
-**Error Response (User Not Found):**
+**No Access Response (User Not Found or No Surveys):**
 ```json
 {
-  "success": false,
-  "message": "User not found",
-  "data": null
+  "success": true,
+  "message": "Found 0 services",
+  "data": []
 }
 ```
 
@@ -503,13 +505,14 @@ async function loadServiceFilter(userId) {
     const result = await response.json();
     
     if (result.success) {
-      const services = result.data.services;
+      const services = result.data;
       // Populate dropdown with services
       const dropdown = document.getElementById('serviceFilter');
       services.forEach(service => {
         const option = document.createElement('option');
-        option.value = service;
-        option.textContent = service;
+        option.value = service.surveyId;
+        option.textContent = service.serviceName;
+        option.setAttribute('data-service-type', service.serviceType);
         dropdown.appendChild(option);
       });
     }
@@ -530,7 +533,7 @@ curl "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f0
 # Test with user sithu (no survey access - returns empty array)
 curl "https://live-dashboard-backend-production.up.railway.app/api/users/e8268d06-61f4-40bc-a03f-29416f1a8aaa/services"
 
-# Test with invalid user ID (returns error)
+# Test with invalid user ID (returns empty array)
 curl "https://live-dashboard-backend-production.up.railway.app/api/users/00000000-0000-0000-0000-000000000000/services"
 ```
 
@@ -549,35 +552,36 @@ Returns all unique regions/facilities from actual survey responses. This is used
 ```json
 {
   "success": true,
-  "message": "Regions retrieved successfully",
-  "data": {
-    "regions": [
-      "Eastwood",
-      "Westfield", 
-      "Central District",
-      "North Shore"
-    ]
-  }
+  "message": "Found 6 regions",
+  "data": [
+    {
+      "facilityCode": "3001",
+      "regionName": "Bull Creek",
+      "participantCount": 25,
+      "isSelected": false
+    },
+    {
+      "facilityCode": "3002", 
+      "regionName": "Coolbellup",
+      "participantCount": 32,
+      "isSelected": false
+    },
+    {
+      "facilityCode": "3003",
+      "regionName": "Mosman Park", 
+      "participantCount": 18,
+      "isSelected": false
+    }
+  ]
 }
 ```
 
-**No Data Response:**
+**No Data Response (Survey Not Found or No Responses):**
 ```json
 {
   "success": true,
-  "message": "No regions found for this survey",
-  "data": {
-    "regions": []
-  }
-}
-```
-
-**Error Response (Survey Not Found):**
-```json
-{
-  "success": false,
-  "message": "Survey not found",
-  "data": null
+  "message": "Found 0 regions",
+  "data": []
 }
 ```
 
@@ -590,7 +594,7 @@ async function loadRegionFilter(surveyId) {
     const result = await response.json();
     
     if (result.success) {
-      const regions = result.data.regions;
+      const regions = result.data;
       const dropdown = document.getElementById('regionFilter');
       
       // Clear existing options
@@ -599,8 +603,8 @@ async function loadRegionFilter(surveyId) {
       // Add region options
       regions.forEach(region => {
         const option = document.createElement('option');
-        option.value = region;
-        option.textContent = region;
+        option.value = region.facilityCode;
+        option.textContent = `${region.regionName} (${region.participantCount} responses)`;
         dropdown.appendChild(option);
       });
       
@@ -629,7 +633,7 @@ curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/8dff5
 # Test with Residential Care survey (has region data)  
 curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/1e2f84b2-bba2-4226-a1de-c511e8402068/regions"
 
-# Test with invalid survey ID (returns error)
+# Test with invalid survey ID (returns empty array)
 curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/00000000-0000-0000-0000-000000000000/regions"
 ```
 
@@ -654,8 +658,8 @@ async function initializeDashboard(userId) {
       const regions = await regionsResponse.json();
       
       // 4. Initialize UI with loaded data
-      populateServiceDropdown(services.data.services);
-      populateRegionDropdown(regions.data.regions);
+      populateServiceDropdown(services.data);
+      populateRegionDropdown(regions.data);
       loadDefaultChartData(defaultSurvey.data.surveyId);
     }
   } catch (error) {
@@ -697,23 +701,23 @@ class DashboardFilterManager {
   async loadServices() {
     const response = await fetch(`/api/users/${this.userId}/services`);
     const result = await response.json();
-    return result.success ? result.data.services : [];
+    return result.success ? result.data : [];
   }
 
   async loadRegions(surveyId) {
     const response = await fetch(`/api/surveys/${surveyId}/regions`);
     const result = await response.json();
-    return result.success ? result.data.regions : [];
+    return result.success ? result.data : [];
   }
 }
 ```
 
 **Edge Cases & Error Handling:**
 
-1. **No Survey Access**: User with no surveys returns empty services array
-2. **No Response Data**: Survey with no responses returns empty regions array  
-3. **Invalid IDs**: Invalid user/survey IDs return appropriate error messages
-4. **Network Failures**: Implement retry logic and fallback states
+1. **No Survey Access**: User with no surveys returns empty services array (`data: []`)
+2. **No Response Data**: Survey with no responses returns empty regions array (`data: []`)  
+3. **Invalid IDs**: Invalid user/survey IDs return empty arrays (graceful degradation)
+4. **Network Failures**: Implement retry logic and fallback states in frontend
 5. **Data Consistency**: Regions are dynamically loaded per survey to ensure accuracy
 
 **Performance Considerations:**
@@ -831,10 +835,10 @@ curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/8dff5
 # Test survey regions endpoint (Residential Care - has regions)
 curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/1e2f84b2-bba2-4226-a1de-c511e8402068/regions"
 
-# Test with invalid user ID (should return error)
+# Test with invalid user ID (returns empty array)
 curl "https://live-dashboard-backend-production.up.railway.app/api/users/00000000-0000-0000-0000-000000000000/services"
 
-# Test with invalid survey ID (should return error)  
+# Test with invalid survey ID (returns empty array)  
 curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/00000000-0000-0000-0000-000000000000/regions"
 ```
 
