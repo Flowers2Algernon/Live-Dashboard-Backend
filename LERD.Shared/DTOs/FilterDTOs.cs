@@ -67,8 +67,7 @@ public class FilterOptions
 // Request DTOs
 public class UpdateServiceRequest
 {
-    public Guid SurveyId { get; set; }
-    public string ServiceType { get; set; } = string.Empty;
+    public Guid SurveyId { get; set; }  // 前端选择的survey ID,仅此而已
 }
 
 public class UpdateRegionsRequest

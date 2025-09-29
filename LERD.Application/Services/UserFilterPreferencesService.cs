@@ -230,30 +230,44 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
 
     #region 写入APIs - 保存用户选择
 
-    public async Task UpdateServiceSelectionAsync(Guid userId, Guid surveyId, string serviceType)
+    public async Task UpdateServiceSelectionAsync(Guid userId, Guid surveyId)
     {
         try
         {
-            _logger.LogInformation("Updating service selection for user {UserId}: {ServiceType}", userId, serviceType);
+            _logger.LogInformation("🔄 Updating service selection for user {UserId} to survey {SurveyId}", 
+                userId, surveyId);
 
-            // 1. 删除用户的旧default filter（如果存在）
+            // 1. 获取survey信息 (包含serviceType)
+            var survey = await _context.Surveys
+                .Where(s => s.Id == surveyId)
+                .FirstOrDefaultAsync();
+
+            if (survey == null)
+            {
+                throw new ArgumentException($"Survey {surveyId} not found");
+            }
+
+            // 2. 删除用户的旧default filter
             var existingFilters = await _context.UserSavedFilters
                 .Where(f => f.UserId == userId && f.IsDefault)
                 .ToListAsync();
 
             _context.UserSavedFilters.RemoveRange(existingFilters);
 
-            // 2. 获取新service的所有regions作为默认选择
+            // 3. 获取新survey的所有regions作为默认选择
             var availableRegions = await GetAvailableRegionsAsync(surveyId);
             var allRegionCodes = availableRegions.Select(r => r.FacilityCode).ToList();
 
-            // 3. 创建新的default filter configuration
+            _logger.LogInformation("📍 Auto-selecting {Count} regions for survey {SurveyId}", 
+                allRegionCodes.Count, surveyId);
+
+            // 4. 创建新的filter configuration
             var config = new FilterConfiguration
             {
                 ServiceType = new SingleSelectFilter 
                 { 
                     Type = "single_select", 
-                    Value = serviceType 
+                    Value = survey.ServiceType ?? ""  // ✅ 从survey读取
                 },
                 Region = new MultiSelectFilter 
                 { 
@@ -262,7 +276,7 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
                 }
             };
 
-            // 4. 保存新的filter
+            // 5. 保存新filter
             var newFilter = new UserSavedFilter
             {
                 Id = Guid.NewGuid(),
@@ -279,11 +293,11 @@ public class UserFilterPreferencesService : IUserFilterPreferencesService
             _context.UserSavedFilters.Add(newFilter);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Service selection updated successfully for user {UserId}", userId);
+            _logger.LogInformation("✅ Service selection updated successfully for user {UserId}", userId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating service selection for user {UserId}", userId);
+            _logger.LogError(ex, "❌ Error updating service selection for user {UserId}", userId);
             throw;
         }
     }

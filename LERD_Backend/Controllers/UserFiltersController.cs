@@ -151,6 +151,58 @@ public class UserFiltersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// 初始化用户的默认filters (首次登录使用)
+    /// POST /api/users/{userId}/filters/initialize
+    /// </summary>
+    [HttpPost("users/{userId}/filters/initialize")]
+    public async Task<ActionResult<UserFilterResponse>> InitializeFilters(Guid userId)
+    {
+        try
+        {
+            _logger.LogInformation("🚀 Initializing default filters for user {UserId}", userId);
+
+            // 1. 获取用户的第一个可访问service
+            var services = await _filterService.GetAvailableServicesAsync(userId);
+            
+            if (services.Count == 0)
+            {
+                _logger.LogWarning("⚠️ User {UserId} has no accessible services", userId);
+                return BadRequest(new UserFilterResponse
+                {
+                    Success = false,
+                    Message = "User has no accessible services"
+                });
+            }
+
+            var firstService = services[0];
+            _logger.LogInformation("📌 Auto-selecting first service: {ServiceType} (survey {SurveyId})", 
+                firstService.ServiceType, firstService.SurveyId);
+
+            // 2. 初始化默认filters (选择第一个service + 该service的所有regions)
+            var config = await _filterService.InitializeDefaultFiltersAsync(
+                userId, 
+                firstService.SurveyId
+            );
+
+            return Ok(new UserFilterResponse
+            {
+                Success = true,
+                Message = "Default filters initialized successfully",
+                Data = config
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Error initializing filters for user {UserId}", userId);
+            return StatusCode(500, new UserFilterResponse
+            {
+                Success = false,
+                Message = $"Error initializing filters: {ex.Message}"
+            });
+        }
+    }
+
     #endregion
 
     #region 写入APIs - 保存用户选择
@@ -166,12 +218,14 @@ public class UserFiltersController : ControllerBase
     {
         try
         {
-            _logger.LogInformation("Updating service selection for user {UserId}: {ServiceType}", userId, request.ServiceType);
+            _logger.LogInformation("🔄 Updating service selection for user {UserId} to survey {SurveyId}", 
+                userId, request.SurveyId);
 
+            // ✅ 修复:只传surveyId,不传serviceType
             await _filterService.UpdateServiceSelectionAsync(
                 userId,
-                request.SurveyId,
-                request.ServiceType);
+                request.SurveyId  // 只需要这一个参数
+            );
 
             return Ok(new
             {
@@ -180,8 +234,7 @@ public class UserFiltersController : ControllerBase
                 data = new
                 {
                     userId = userId,
-                    surveyId = request.SurveyId,
-                    serviceType = request.ServiceType
+                    surveyId = request.SurveyId
                 }
             });
         }

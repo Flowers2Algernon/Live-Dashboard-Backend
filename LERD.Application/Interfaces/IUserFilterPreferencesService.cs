@@ -13,7 +13,7 @@ public interface IUserFilterPreferencesService
     Task<FilterConfiguration> GetUserFiltersAsync(Guid userId, Guid surveyId);
     
     // 写入APIs - 保存用户选择
-    Task UpdateServiceSelectionAsync(Guid userId, Guid surveyId, string serviceType);
+    Task UpdateServiceSelectionAsync(Guid userId, Guid surveyId);
     Task UpdateRegionSelectionAsync(Guid userId, Guid surveyId, List<string> regions);
     
     // 初始化
