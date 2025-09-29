@@ -840,9 +840,495 @@ curl "https://live-dashboard-backend-production.up.railway.app/api/users/0000000
 
 # Test with invalid survey ID (returns empty array)  
 curl "https://live-dashboard-backend-production.up.railway.app/api/surveys/00000000-0000-0000-0000-000000000000/regions"
+
+# Test Filter Preference Management APIs (New Feature - State Persistence)
+
+# Test get user filter configuration (should return saved filters or initialize defaults)
+curl "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+
+# Test initialize default filters for new user
+curl -X POST "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters/initialize"
+
+# Test update service selection (auto-selects all regions for new service)
+curl -X PATCH "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters/service" \
+  -H "Content-Type: application/json" \
+  -d '{"surveyId":"1e2f84b2-bba2-4226-a1de-c511e8402068"}'
+
+# Test update region selection (save specific region choices)
+curl -X PATCH "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters/regions" \
+  -H "Content-Type: application/json" \
+  -d '{"surveyId":"8dff523d-2a46-4ee3-8017-614af3813b32","regions":["3001","3003","3005"]}'
+
+# Test complete workflow: initialize → get → update service → update regions
+# 1. Initialize
+curl -X POST "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters/initialize"
+
+# 2. Get current state
+curl "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+
+# 3. Change service
+curl -X PATCH "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters/service" \
+  -H "Content-Type: application/json" \
+  -d '{"surveyId":"1e2f84b2-bba2-4226-a1de-c511e8402068"}'
+
+# 4. Verify new state
+curl "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters?surveyId=1e2f84b2-bba2-4226-a1de-c511e8402068"
 ```
 
-## 📞 Contact
+## 🎛️ Filter Preference Management APIs
 
-If you encounter any issues or need additional endpoints, please contact the backend team.
+These APIs manage user filter preferences and state persistence. They allow users to save their filter selections and restore them across sessions.
+
+### ✨ Key Features:
+- **💾 State Persistence**: Save user filter selections to database
+- **🔄 Session Restore**: Restore user's last filter configuration
+- **🎯 Auto-Initialize**: Automatically set up default filters for new users
+- **🔗 Coordinated Updates**: Service changes automatically update related regions
+- **⚡ Fast Retrieval**: Optimized for dashboard initialization
+
+### 1. Get User Filter Configuration
+Retrieve the current filter configuration for a user and survey.
+
+**Endpoint:** `GET /users/{userId}/filters?surveyId={surveyId}`
+
+**Parameters:**
+- `userId` (required): GUID of the user
+- `surveyId` (required): GUID of the survey (query parameter)
+
+**Description:**
+Returns the user's saved filter configuration for the specified survey. If no configuration exists, initializes default filters.
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "User filters retrieved successfully",
+  "data": {
+    "serviceType": {
+      "type": "single_select",
+      "value": "Retirement Village"
+    },
+    "region": {
+      "type": "multi_select", 
+      "values": ["3001", "3002", "3003", "3004", "3005", "3006"]
+    },
+    "gender": null,
+    "participantType": null,
+    "period": null
+  }
+}
+```
+
+**Frontend Usage:**
+```javascript
+// Get user's current filter configuration
+async function getUserFilters(userId, surveyId) {
+  try {
+    const response = await fetch(
+      `https://live-dashboard-backend-production.up.railway.app/api/users/${userId}/filters?surveyId=${surveyId}`
+    );
+    const result = await response.json();
+    
+    if (result.success) {
+      const config = result.data;
+      
+      // Apply service selection
+      if (config.serviceType) {
+        document.getElementById('serviceSelect').value = config.serviceType.value;
+      }
+      
+      // Apply region selections
+      if (config.region && config.region.values) {
+        const regionCheckboxes = document.querySelectorAll('input[name="regions"]');
+        regionCheckboxes.forEach(checkbox => {
+          checkbox.checked = config.region.values.includes(checkbox.value);
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error loading user filters:', error);
+  }
+}
+```
+
+### 2. Initialize Default Filters
+Initialize default filter configuration for a new user (auto-selects first available service and all its regions).
+
+**Endpoint:** `POST /users/{userId}/filters/initialize`
+
+**Parameters:**
+- `userId` (required): GUID of the user
+
+**Description:**
+Sets up default filters for users who haven't configured filters yet. Automatically selects the first available service and all regions for that service.
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Default filters initialized successfully",
+  "data": {
+    "serviceType": {
+      "type": "single_select",
+      "value": "Retirement Village"
+    },
+    "region": {
+      "type": "multi_select",
+      "values": ["3001", "3002", "3003", "3004", "3005", "3006"]
+    },
+    "gender": null,
+    "participantType": null,
+    "period": null
+  }
+}
+```
+
+**Error Response (No Services Available):**
+```json
+{
+  "success": false,
+  "message": "User has no accessible services",
+  "data": null
+}
+```
+
+**Note:** The initialize endpoint may encounter database constraints in production. As a workaround, use the update service selection endpoint to achieve the same result:
+
+```javascript
+// Alternative initialization approach
+async function initializeUserFiltersWorkaround(userId) {
+  try {
+    // 1. Get available services first
+    const servicesResponse = await fetch(`/api/users/${userId}/services`);
+    const services = await servicesResponse.json();
+    
+    if (services.success && services.data.length > 0) {
+      // 2. Use update service selection to initialize
+      const firstSurveyId = services.data[0].surveyId;
+      await fetch(`/api/users/${userId}/filters/service`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ surveyId: firstSurveyId })
+      });
+      
+      // 3. Get the initialized filters
+      const filtersResponse = await fetch(`/api/users/${userId}/filters?surveyId=${firstSurveyId}`);
+      return filtersResponse.json();
+    }
+  } catch (error) {
+    console.error('Workaround initialization failed:', error);
+  }
+}
+```
+
+**Frontend Usage:**
+```javascript
+// Initialize filters for new user
+async function initializeUserFilters(userId) {
+  try {
+    const response = await fetch(
+      `https://live-dashboard-backend-production.up.railway.app/api/users/${userId}/filters/initialize`,
+      { method: 'POST' }
+    );
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('Default filters set up:', result.data);
+      // Reload dashboard with new default settings
+      loadDashboard(userId, result.data);
+    } else {
+      console.error('Failed to initialize filters:', result.message);
+    }
+  } catch (error) {
+    console.error('Error initializing filters:', error);
+  }
+}
+```
+
+### 3. Update Service Selection
+Update the user's selected service (automatically updates regions to include all regions for the new service).
+
+**Endpoint:** `PATCH /users/{userId}/filters/service`
+
+**Request Body:**
+```json
+{
+  "surveyId": "1e2f84b2-bba2-4226-a1de-c511e8402068"
+}
+```
+
+**Parameters:**
+- `userId` (required): GUID of the user
+- `surveyId` (required): GUID of the new survey to select
+
+**Description:**
+Changes the user's service selection and automatically selects all available regions for the new service.
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Service selection updated successfully",
+  "data": {
+    "userId": "1df07f08-f487-4a36-8522-cf17bc69d50b",
+    "surveyId": "1e2f84b2-bba2-4226-a1de-c511e8402068"
+  }
+}
+```
+
+**Frontend Usage:**
+```javascript
+// Update service selection
+async function updateServiceSelection(userId, newSurveyId) {
+  try {
+    const response = await fetch(
+      `https://live-dashboard-backend-production.up.railway.app/api/users/${userId}/filters/service`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ surveyId: newSurveyId })
+      }
+    );
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('Service updated successfully');
+      // Reload regions for new service
+      await loadRegionsForSurvey(newSurveyId);
+      // Refresh dashboard data
+      await refreshDashboard(userId, newSurveyId);
+    }
+  } catch (error) {
+    console.error('Error updating service:', error);
+  }
+}
+```
+
+### 4. Update Region Selection
+Update the user's selected regions for the current survey.
+
+**Endpoint:** `PATCH /users/{userId}/filters/regions`
+
+**Request Body:**
+```json
+{
+  "surveyId": "8dff523d-2a46-4ee3-8017-614af3813b32",
+  "regions": ["3001", "3003", "3005"]
+}
+```
+
+**Parameters:**
+- `userId` (required): GUID of the user
+- `surveyId` (required): GUID of the survey
+- `regions` (required): Array of facility codes to select
+
+**Description:**
+Updates the user's region selection for the specified survey.
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Region selection updated successfully",
+  "data": {
+    "userId": "1df07f08-f487-4a36-8522-cf17bc69d50b",
+    "surveyId": "8dff523d-2a46-4ee3-8017-614af3813b32",
+    "regions": ["3001", "3003", "3005"]
+  }
+}
+```
+
+**Frontend Usage:**
+```javascript
+// Update region selection
+async function updateRegionSelection(userId, surveyId, selectedRegions) {
+  try {
+    const response = await fetch(
+      `https://live-dashboard-backend-production.up.railway.app/api/users/${userId}/filters/regions`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surveyId: surveyId,
+          regions: selectedRegions
+        })
+      }
+    );
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('Regions updated successfully');
+      // Refresh charts with new region filter
+      await refreshChartsWithFilters(userId, surveyId);
+    }
+  } catch (error) {
+    console.error('Error updating regions:', error);
+  }
+}
+```
+
+### Complete Dashboard Workflow Example
+
+```javascript
+// Complete dashboard initialization and filter management
+class DashboardManager {
+  constructor(userId) {
+    this.userId = userId;
+    this.currentSurveyId = null;
+  }
+
+  // 1. Initialize dashboard on first load
+  async initialize() {
+    try {
+      // Check if user has any services
+      const services = await this.loadAvailableServices();
+      
+      if (services.length === 0) {
+        this.showNoDataMessage();
+        return;
+      }
+
+      // Try to get existing filter configuration
+      let filterConfig = await this.getUserFilters(services[0].surveyId);
+      
+      // If no config exists, initialize defaults
+      if (!filterConfig) {
+        filterConfig = await this.initializeDefaults();
+      }
+
+      this.currentSurveyId = services[0].surveyId;
+      await this.applyFiltersToUI(filterConfig);
+      await this.loadDashboardData();
+      
+    } catch (error) {
+      console.error('Dashboard initialization failed:', error);
+    }
+  }
+
+  // 2. Handle service change
+  async onServiceChange(newSurveyId) {
+    try {
+      // Update service selection (auto-selects all regions)
+      await this.updateServiceSelection(newSurveyId);
+      
+      // Load new regions
+      const regions = await this.loadRegionsForSurvey(newSurveyId);
+      this.updateRegionDropdown(regions);
+      
+      // Refresh dashboard
+      this.currentSurveyId = newSurveyId;
+      await this.loadDashboardData();
+      
+    } catch (error) {
+      console.error('Service change failed:', error);
+    }
+  }
+
+  // 3. Handle region change
+  async onRegionChange(selectedRegions) {
+    try {
+      await this.updateRegionSelection(selectedRegions);
+      await this.loadDashboardData();
+    } catch (error) {
+      console.error('Region change failed:', error);
+    }
+  }
+
+  // Helper methods
+  async loadAvailableServices() {
+    const response = await fetch(`/api/users/${this.userId}/services`);
+    const result = await response.json();
+    return result.success ? result.data : [];
+  }
+
+  async getUserFilters(surveyId) {
+    const response = await fetch(`/api/users/${this.userId}/filters?surveyId=${surveyId}`);
+    const result = await response.json();
+    return result.success ? result.data : null;
+  }
+
+  async initializeDefaults() {
+    const response = await fetch(`/api/users/${this.userId}/filters/initialize`, {
+      method: 'POST'
+    });
+    const result = await response.json();
+    return result.success ? result.data : null;
+  }
+
+  async updateServiceSelection(surveyId) {
+    const response = await fetch(`/api/users/${this.userId}/filters/service`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ surveyId })
+    });
+    return response.json();
+  }
+
+  async updateRegionSelection(regions) {
+    const response = await fetch(`/api/users/${this.userId}/filters/regions`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        surveyId: this.currentSurveyId,
+        regions: regions
+      })
+    });
+    return response.json();
+  }
+}
+
+// Usage
+const dashboard = new DashboardManager('1df07f08-f487-4a36-8522-cf17bc69d50b');
+dashboard.initialize();
+```
+
+**Test Cases:**
+```bash
+# Test get user filters (existing user with filters)
+curl "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters?surveyId=8dff523d-2a46-4ee3-8017-614af3813b32"
+
+# Test initialize filters for new user
+curl -X POST "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters/initialize"
+
+# Test update service selection
+curl -X PATCH "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters/service" \
+  -H "Content-Type: application/json" \
+  -d '{"surveyId":"1e2f84b2-bba2-4226-a1de-c511e8402068"}'
+
+# Test update region selection
+curl -X PATCH "https://live-dashboard-backend-production.up.railway.app/api/users/1df07f08-f487-4a36-8522-cf17bc69d50b/filters/regions" \
+  -H "Content-Type: application/json" \
+  -d '{"surveyId":"8dff523d-2a46-4ee3-8017-614af3813b32","regions":["3001","3003","3005"]}'
+```
+
+### Database Schema Reference
+
+The filter preferences are stored in the `user_saved_filters` table:
+
+```sql
+-- Table structure
+CREATE TABLE user_saved_filters (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    survey_id UUID NOT NULL,
+    filter_name VARCHAR(100) DEFAULT 'default',
+    filter_configuration JSONB NOT NULL,
+    is_default BOOLEAN DEFAULT true,
+    last_used_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Example filter_configuration JSONB:
+{
+  "serviceType": {
+    "type": "single_select",
+    "value": "Retirement Village"
+  },
+  "region": {
+    "type": "multi_select",
+    "values": ["3001", "3002", "3003", "3005", "3008"]
+  }
+}
+```
 
