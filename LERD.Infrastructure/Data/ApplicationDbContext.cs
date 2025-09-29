@@ -13,6 +13,7 @@ namespace LERD.Infrastructure.Data
         public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Survey> Surveys { get; set; }
+        public DbSet<UserSavedFilter> UserSavedFilters { get; set; } // Add DbSet for UserSavedFilter
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -104,6 +105,29 @@ namespace LERD.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(e => e.OrganisationId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // UserSavedFilter entity configuration
+            modelBuilder.Entity<UserSavedFilter>(entity =>
+            {
+                entity.ToTable("user_saved_filters");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+                entity.Property(e => e.SurveyId).HasColumnName("survey_id").IsRequired();
+                entity.Property(e => e.FilterName).HasColumnName("filter_name").IsRequired().HasMaxLength(100);
+                entity.Property(e => e.FilterConfiguration)
+                    .HasColumnName("filter_configuration")
+                    .HasColumnType("jsonb")
+                    .IsRequired();
+                entity.Property(e => e.IsDefault).HasColumnName("is_default");
+                entity.Property(e => e.LastUsedAt).HasColumnName("last_used_at");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+                // Indexes
+                entity.HasIndex(e => new { e.UserId, e.SurveyId }).HasDatabaseName("idx_user_saved_filters_user_survey");
+                entity.HasIndex(e => new { e.UserId, e.IsDefault }).HasDatabaseName("idx_user_saved_filters_user_default");
             });
 
             base.OnModelCreating(modelBuilder);
